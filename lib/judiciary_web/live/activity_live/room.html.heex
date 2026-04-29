@@ -1,0 +1,64 @@
+<div class="h-screen flex flex-col -m-4 sm:-m-6 lg:-m-8 bg-zinc-900 text-white" id="court-room">
+  <%= if is_nil(@display_name) do %>
+    <div class="flex-1 flex items-center justify-center">
+      <div class="bg-zinc-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-zinc-700">
+        <h2 class="text-2xl font-bold mb-6 text-center">Join Court Room</h2>
+        <p class="text-zinc-400 mb-6 text-center text-sm">Please enter your name to join the session.</p>
+        <form phx-submit="set_name" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium mb-2">Display Name</label>
+            <input type="text" name="name" required class="w-full bg-zinc-900 border-zinc-700 rounded-lg focus:ring-green-500 focus:border-green-500 text-white" placeholder="e.g. John Doe" />
+          </div>
+          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors">
+            Continue to Session
+          </button>
+        </form>
+      </div>
+    </div>
+  <% else %>
+    <div class="flex-1 p-4 flex flex-col" id="webrtc-container" phx-hook="WebRTC">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h1 class="text-xl font-semibold">{@activity.title}</h1>
+          <p class="text-sm text-zinc-400">Case No: {@activity.case_number} | Presiding: {@activity.judge_name}</p>
+        </div>
+        <div class="flex gap-2">
+          <span class="inline-flex items-center rounded-md bg-red-400/10 px-2 py-1 text-xs font-medium text-red-400 ring-1 ring-inset ring-red-400/20">
+            ● REC
+          </span>
+          <span class="inline-flex items-center rounded-md bg-green-500/10 px-2 py-1 text-xs font-medium text-green-400 ring-1 ring-inset ring-green-500/20">
+            P2P Mode
+          </span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-[calc(100vh-160px)]" id="video-grid" phx-update="ignore">
+        <!-- Local Video -->
+        <div class="relative bg-black rounded-lg overflow-hidden border border-zinc-700 shadow-lg">
+          <video id="local-video" class="w-full h-full object-cover" autoplay muted playsinline></video>
+          <div class="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">{@display_name} (You)</div>
+        </div>
+        <!-- Remote Videos will be appended here via JS -->
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="h-20 bg-zinc-800 border-t border-zinc-700 flex items-center justify-center gap-4 px-4">
+      <button id="toggle-audio" class="p-3 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+      </button>
+      <button id="toggle-video" class="p-3 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      </button>
+      <.link navigate={~p"/activities"} class="p-3 rounded-full bg-red-600 hover:bg-red-700 transition-colors">
+        <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+        </svg>
+      </.link>
+    </div>
+  <% end %>
+</div>

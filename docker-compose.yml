@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: judiciary_dev
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    volumes:
+      - .:/app
+      - /app/_build
+      - /app/deps
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: ecto://postgres:postgres@db/judiciary_dev
+      PHX_HOST: localhost
+    depends_on:
+      - db
+    command: sh -c "mix ecto.setup && mix phx.server"
+
+volumes:
+  postgres_data:

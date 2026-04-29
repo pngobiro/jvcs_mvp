@@ -1,0 +1,33 @@
+<.header>
+  Activity {@activity.id}
+  <:subtitle>This is an activity record from your database.</:subtitle>
+  <:actions>
+    <.link navigate={~p"/activities/#{@activity}/room"}>
+      <.button class="bg-green-600 hover:bg-green-700">Join Court Room</.button>
+    </.link>
+    <.link patch={~p"/activities/#{@activity}/show/edit"} phx-click={JS.push_focus()}>
+      <.button>Edit activity</.button>
+    </.link>
+  </:actions>
+</.header>
+
+<.list>
+  <:item title="Case number">{@activity.case_number}</:item>
+  <:item title="Title">{@activity.title}</:item>
+  <:item title="Start time">{@activity.start_time}</:item>
+  <:item title="Status">{@activity.status}</:item>
+  <:item title="Judge name">{@activity.judge_name}</:item>
+</.list>
+
+<.back navigate={~p"/activities"}>Back to activities</.back>
+
+<.modal :if={@live_action == :edit} id="activity-modal" show on_cancel={JS.patch(~p"/activities/#{@activity}")}>
+  <.live_component
+    module={JudiciaryWeb.ActivityLive.FormComponent}
+    id={@activity.id}
+    title={@page_title}
+    action={@live_action}
+    activity={@activity}
+    patch={~p"/activities/#{@activity}"}
+  />
+</.modal>
