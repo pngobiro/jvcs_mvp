@@ -1,20 +1,34 @@
-<div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32">
+<div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32 bg-zinc-50 min-h-[calc(100vh-80px)]">
   <div class="mx-auto max-w-2xl text-center">
-    <h1 class="text-4xl font-bold tracking-tight text-zinc-900 sm:text-6xl">
-      Judiciary Virtual Court System
+    <div class="flex justify-center mb-10">
+      <div class="p-4 bg-white rounded-3xl shadow-2xl border-b-4 border-judiciary-gold">
+        <img src={~p"/images/judiciary-logo.png"} class="h-32 w-auto object-contain" alt="Judiciary Logo Large" />
+      </div>
+    </div>
+    
+    <h1 class="text-4xl font-black tracking-tight text-zinc-900 sm:text-6xl uppercase leading-none">
+      Judiciary <span class="text-judiciary-green">Virtual Court</span> System
     </h1>
-    <p class="mt-6 text-lg leading-8 text-zinc-600">
-      Welcome to the J-VCS MVP. This platform facilitates digital court sessions, ensuring justice is accessible, secure, and sovereign.
+    
+    <div class="mt-4 flex items-center justify-center gap-2">
+      <span class="h-px w-8 bg-judiciary-gold"></span>
+      <span class="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Republic of Kenya</span>
+      <span class="h-px w-8 bg-judiciary-gold"></span>
+    </div>
+
+    <p class="mt-8 text-lg leading-8 text-zinc-600 font-medium">
+      Welcome to the J-VCS. This platform facilitates digital court sessions, ensuring justice is accessible, secure, and sovereign for all citizens.
     </p>
-    <div class="mt-10 flex items-center justify-center gap-x-6">
+    
+    <div class="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
       <.link
         href={~p"/activities"}
-        class="rounded-md bg-green-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600"
+        class="w-full sm:w-auto rounded-2xl bg-judiciary-green px-8 py-4 text-sm font-black text-white shadow-xl hover:bg-judiciary-green-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-judiciary-green transition-all active:scale-[0.98] border-b-4 border-judiciary-gold uppercase tracking-widest"
       >
-        View Court Activities
+        View Court Causelist
       </.link>
-      <a href="https://github.com/pngobiro/jvcs_mvp" class="text-sm font-semibold leading-6 text-zinc-900">
-        View Source <span aria-hidden="true">→</span>
+      <a href="https://github.com/pngobiro/jvcs_mvp" class="text-sm font-bold leading-6 text-zinc-500 hover:text-judiciary-green transition-colors">
+        Documentation <span aria-hidden="true">→</span>
       </a>
     </div>
   </div>

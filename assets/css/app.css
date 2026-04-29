@@ -6,6 +6,14 @@
 @source "../js";
 @source "../../lib/judiciary_web";
 
+@theme {
+  --color-judiciary-green: #006400;
+  --color-judiciary-green-dark: #004d00;
+  --color-judiciary-gold: #C5A059;
+  --color-judiciary-gold-light: #E1C48F;
+  --color-judiciary-dark: #1A1A1A;
+}
+
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";

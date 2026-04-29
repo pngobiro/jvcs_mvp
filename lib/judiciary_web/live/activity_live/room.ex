@@ -27,7 +27,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
 
   @impl true
   def handle_event("set_identity", %{"name" => name, "role" => role}, socket) do
-    peer_id = Math.random_id()
+    peer_id = M.random_id()
     # Judge and Clerk are admitted by default for the MVP, others start in waiting
     status = if role in ["judge", "clerk"], do: "admitted", else: "waiting"
     
@@ -36,7 +36,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
         display_name: name,
         role: role,
         status: status,
-        online_at: inspect(System.system_time(:second))
+        online_at: System.system_time(:second)
       })
     end
 
@@ -59,7 +59,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   @impl true
   def handle_event("send_message", %{"body" => body, "to" => to}, socket) do
     message = %{
-      id: Math.random_id(),
+      id: M.random_id(),
       from: socket.assigns.display_name,
       from_id: socket.assigns.current_peer_id,
       body: body,
@@ -140,6 +140,6 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   end
 end
 
-defmodule Math do
+defmodule M do
   def random_id, do: :crypto.strong_rand_bytes(8) |> Base.url_encode64() |> binary_part(0, 8)
 end

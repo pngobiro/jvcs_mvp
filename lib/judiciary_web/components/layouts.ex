@@ -22,17 +22,24 @@ defmodule JudiciaryWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8 bg-zinc-900 text-white shadow-md">
+    <header class="navbar px-4 sm:px-6 lg:px-8 bg-judiciary-green text-white shadow-xl border-b-[6px] border-judiciary-gold">
       <div class="flex-1">
-        <a href="/" class="flex items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" class="invert" />
-          <span class="text-sm font-semibold">J-VCS MVP</span>
+        <a href="/" class="flex items-center gap-4 group">
+          <div class="p-1 bg-white rounded-xl shadow-lg group-hover:scale-105 transition-transform">
+            <img src={~p"/images/judiciary-logo.png"} class="h-14 w-auto object-contain" alt="Judiciary Logo" />
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xl font-black tracking-tight leading-none group-hover:text-judiciary-gold-light transition-colors">THE JUDICIARY</span>
+            <span class="text-[10px] font-bold tracking-[0.25em] text-judiciary-gold-light uppercase opacity-90">Republic of Kenya</span>
+          </div>
         </a>
       </div>
       <div class="flex-none">
-        <ul class="flex flex-row px-1 space-x-4 items-center">
+        <ul class="flex flex-row px-1 space-x-8 items-center">
           <li>
-            <.link href={~p"/activities"} class="btn btn-ghost btn-sm">Activities</.link>
+            <.link href={~p"/activities"} class="text-sm font-black uppercase tracking-widest hover:text-judiciary-gold-light transition-all border-b-2 border-transparent hover:border-judiciary-gold pb-1">
+              Causelist
+            </.link>
           </li>
           <%= if @current_scope && @current_scope.user do %>
             <li class="text-[0.8125rem] leading-6 text-zinc-300">

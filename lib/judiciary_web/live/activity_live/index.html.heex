@@ -1,37 +1,127 @@
-<.header>
-  Listing Activities
-  <:actions>
-    <.link patch={~p"/activities/new"}>
-      <.button>New Activity</.button>
-    </.link>
-  </:actions>
-</.header>
-
-<.table
-  id="activities"
-  rows={@streams.activities}
-  row_click={fn {_id, activity} -> JS.navigate(~p"/activities/#{activity}") end}
->
-  <:col :let={{_id, activity}} label="Case number">{activity.case_number}</:col>
-  <:col :let={{_id, activity}} label="Title">{activity.title}</:col>
-  <:col :let={{_id, activity}} label="Start time">{activity.start_time}</:col>
-  <:col :let={{_id, activity}} label="Status">{activity.status}</:col>
-  <:col :let={{_id, activity}} label="Judge name">{activity.judge_name}</:col>
-  <:action :let={{_id, activity}}>
-    <div class="sr-only">
-      <.link navigate={~p"/activities/#{activity}"}>Show</.link>
+<div class="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+  <!-- Page Header -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+    <div>
+      <h1 class="text-3xl font-black tracking-tight text-zinc-900 flex items-center gap-3">
+        <span class="w-2 h-10 bg-judiciary-green rounded-full"></span>
+        Virtual Court Causelist
+      </h1>
+      <p class="text-zinc-500 mt-2 font-medium italic border-l-2 border-judiciary-gold pl-3">Daily schedule of active and upcoming digital hearings.</p>
     </div>
-    <.link patch={~p"/activities/#{activity}/edit"}>Edit</.link>
-  </:action>
-  <:action :let={{id, activity}}>
-    <.link
-      phx-click={JS.push("delete", value: %{id: activity.id}) |> hide("##{id}")}
-      data-confirm="Are you sure?"
+    
+    <div class="flex items-center gap-4">
+      <div class="flex -space-x-2 overflow-hidden">
+        <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">JP</div>
+        <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">LB</div>
+        <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">SC</div>
+      </div>
+      <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest">Live Now</span>
+      
+      <.link patch={~p"/activities/new"}>
+        <.button class="bg-judiciary-green hover:bg-judiciary-dark text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-judiciary-gold transition-all active:scale-95 font-bold">
+          + Schedule Hearing
+        </.button>
+      </.link>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+    <div class="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+      <p class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total Sessions</p>
+      <p class="text-2xl font-bold text-zinc-900">4 Active</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm border-l-4 border-l-red-500">
+      <p class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Live Right Now</p>
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+        <p class="text-2xl font-bold text-zinc-900">1 Session</p>
+      </div>
+    </div>
+    <div class="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm">
+      <p class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Upcoming Today</p>
+      <p class="text-2xl font-bold text-zinc-900">2 Pending</p>
+    </div>
+    <div class="bg-white p-6 rounded-2xl border border-zinc-100 shadow-sm border-l-4 border-l-judiciary-gold">
+      <p class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">Legal Integrity</p>
+      <p class="text-2xl font-bold text-zinc-900">WORM Active</p>
+    </div>
+  </div>
+
+  <!-- Activities Table -->
+  <div class="bg-white rounded-3xl shadow-xl border border-zinc-200 overflow-hidden">
+    <div class="p-6 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between">
+      <h3 class="font-bold text-zinc-700">Scheduled Hearings</h3>
+      <div class="flex gap-2">
+        <span class="px-3 py-1 rounded-lg bg-white border border-zinc-200 text-xs font-bold text-zinc-500 cursor-pointer hover:bg-zinc-50">Filter: All</span>
+        <span class="px-3 py-1 rounded-lg bg-white border border-zinc-200 text-xs font-bold text-zinc-500 cursor-pointer hover:bg-zinc-50 text-judiciary-green">Date: Today</span>
+      </div>
+    </div>
+
+    <.table
+      id="activities"
+      rows={@streams.activities}
+      row_click={fn {_id, activity} -> JS.navigate(~p"/activities/#{activity}") end}
+      class="text-sm"
     >
-      Delete
-    </.link>
-  </:action>
-</.table>
+      <:col :let={{_id, activity}} label="CASE REFERENCE" class="font-mono font-bold text-judiciary-green tracking-tighter uppercase">
+        {activity.case_number}
+      </:col>
+      <:col :let={{_id, activity}} label="HEARING TITLE" class="font-bold text-zinc-900">
+        <div class="max-w-xs md:max-w-md truncate" title={activity.title}>
+          {activity.title}
+        </div>
+      </:col>
+      <:col :let={{_id, activity}} label="PRESIDING" class="text-zinc-600 font-medium">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 bg-zinc-100 rounded-md flex items-center justify-center text-[10px] font-bold text-zinc-500 border border-zinc-200">
+            {String.at(activity.judge_name, 5) || "J"}
+          </div>
+          {activity.judge_name}
+        </div>
+      </:col>
+      <:col :let={{_id, activity}} label="START TIME" class="text-zinc-500 tabular-nums">
+        <div class="flex flex-col">
+          <span class="font-bold text-zinc-700">{Calendar.strftime(activity.start_time, "%I:%M %p")}</span>
+          <span class="text-[10px] uppercase font-bold tracking-tighter opacity-60">{Calendar.strftime(activity.start_time, "%d %b")}</span>
+        </div>
+      </:col>
+      <:col :let={{_id, activity}} label="STATUS">
+        <span class={"px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border #{status_classes(activity.status)}"}>
+          {activity.status}
+        </span>
+      </:col>
+      <:action :let={{_id, activity}}>
+        <div class="flex items-center gap-4">
+          <.link navigate={~p"/activities/#{activity}"} class="text-zinc-400 hover:text-judiciary-green transition-colors" title="View Dossier">
+            <.icon name="hero-document-text" class="w-5 h-5" />
+          </.link>
+          <.link navigate={~p"/activities/#{activity}/room"} class="text-zinc-400 hover:text-green-600 transition-colors" title="Join Room">
+            <.icon name="hero-video-camera" class="w-5 h-5" />
+          </.link>
+        </div>
+      </:action>
+      <:action :let={{_id, activity}}>
+        <.link patch={~p"/activities/#{activity}/edit"} class="text-zinc-400 hover:text-blue-600 transition-colors">
+          <.icon name="hero-pencil-square" class="w-5 h-5" />
+        </.link>
+      </:action>
+      <:action :let={{id, activity}}>
+        <.link
+          phx-click={JS.push("delete", value: %{id: activity.id}) |> hide("##{id}")}
+          data-confirm="Are you sure you want to strike out this hearing?"
+          class="text-zinc-400 hover:text-red-600 transition-colors"
+        >
+          <.icon name="hero-trash" class="w-5 h-5" />
+        </.link>
+      </:action>
+    </.table>
+
+    <div class="p-6 bg-zinc-50 border-t border-zinc-100">
+      <p class="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.2em] text-center italic">Official Judiciary Virtual Court Interface • Secure & Sovereign</p>
+    </div>
+  </div>
+</div>
 
 <.modal :if={@live_action in [:new, :edit]} id="activity-modal" show on_cancel={JS.patch(~p"/activities")}>
   <.live_component

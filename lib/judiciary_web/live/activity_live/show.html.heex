@@ -1,25 +1,95 @@
-<.header>
-  Activity {@activity.id}
-  <:subtitle>This is an activity record from your database.</:subtitle>
-  <:actions>
-    <.link navigate={~p"/activities/#{@activity}/room"}>
-      <.button class="bg-green-600 hover:bg-green-700">Join Court Room</.button>
-    </.link>
-    <.link patch={~p"/activities/#{@activity}/show/edit"} phx-click={JS.push_focus()}>
-      <.button>Edit activity</.button>
-    </.link>
-  </:actions>
-</.header>
+<div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+  <.back navigate={~p"/activities"} class="mb-6 font-bold text-judiciary-green hover:text-judiciary-dark">Back to Causelist</.back>
 
-<.list>
-  <:item title="Case number">{@activity.case_number}</:item>
-  <:item title="Title">{@activity.title}</:item>
-  <:item title="Start time">{@activity.start_time}</:item>
-  <:item title="Status">{@activity.status}</:item>
-  <:item title="Judge name">{@activity.judge_name}</:item>
-</.list>
+  <div class="bg-white shadow-2xl rounded-3xl overflow-hidden border border-zinc-200">
+    <!-- Header Section -->
+    <div class="bg-judiciary-green px-8 py-10 text-white relative border-b-[8px] border-judiciary-gold">
+      <div class="absolute top-8 right-8">
+        <span class={"px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20 #{if @activity.status == "in_progress", do: "bg-red-600 animate-pulse", else: "bg-judiciary-green/50"}"}>
+          {@activity.status}
+        </span>
+      </div>
+      
+      <p class="text-judiciary-gold font-mono text-xs mb-2 tracking-widest uppercase font-black opacity-90">Case Reference: {@activity.case_number}</p>
+      <h1 class="text-3xl font-bold tracking-tight leading-tight mb-4">{@activity.title}</h1>
+      
+      <div class="flex flex-wrap gap-6 text-judiciary-gold-light text-sm font-medium">
+        <div class="flex items-center gap-2">
+          <.icon name="hero-calendar-solid" class="w-4 h-4" />
+          {Calendar.strftime(@activity.start_time, "%A, %d %B %Y")}
+        </div>
+        <div class="flex items-center gap-2">
+          <.icon name="hero-clock-solid" class="w-4 h-4" />
+          {Calendar.strftime(@activity.start_time, "%I:%M %p")} UTC
+        </div>
+      </div>
+    </div>
 
-<.back navigate={~p"/activities"}>Back to activities</.back>
+    <!-- Details Section -->
+    <div class="p-8 bg-zinc-50/50">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
+        <div class="space-y-6">
+          <h3 class="text-xs font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-200 pb-2">Presiding Officer</h3>
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 bg-judiciary-green text-judiciary-gold-light rounded-2xl flex items-center justify-center font-bold text-2xl shadow-xl border-2 border-judiciary-gold">
+              {String.at(@activity.judge_name, 5) || "J"}
+            </div>
+            <div>
+              <p class="font-bold text-zinc-900 text-xl tracking-tight">{@activity.judge_name}</p>
+              <p class="text-xs font-black text-judiciary-green uppercase tracking-widest">Republic of Kenya</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <h3 class="text-xs font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-200 pb-2">Session Security</h3>
+          <div class="space-y-4">
+            <div class="flex items-start gap-3 text-sm text-zinc-700 font-bold">
+              <.icon name="hero-shield-check-solid" class="w-5 h-5 text-judiciary-green mt-0.5" />
+              <div>
+                <p>Public Access Protocol</p>
+                <p class="text-[10px] text-zinc-400 font-normal uppercase tracking-tighter">Zoom-style / Secure Tunnel enabled</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 text-sm text-zinc-700 font-bold">
+              <.icon name="hero-video-camera-solid" class="w-5 h-5 text-judiciary-green mt-0.5" />
+              <div>
+                <p>WORM Recording Active</p>
+                <p class="text-[10px] text-zinc-400 font-normal uppercase tracking-tighter">Automated Archival Enabled</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions Section -->
+      <div class="flex flex-col sm:flex-row gap-4 pt-8 border-t border-zinc-200">
+        <.link navigate={~p"/activities/#{@activity}/room"} class="flex-1">
+          <.button class="w-full bg-judiciary-green hover:bg-judiciary-dark text-white py-5 text-lg font-black shadow-2xl active:scale-[0.98] transition-all border-b-4 border-judiciary-gold rounded-2xl uppercase tracking-widest">
+            Join Virtual Court Room
+          </.button>
+        </.link>
+        
+        <.link patch={~p"/activities/#{@activity}/show/edit"} phx-click={JS.push_focus()}>
+          <.button class="w-full sm:w-auto bg-white border-2 border-zinc-300 text-zinc-700 hover:bg-zinc-100 py-5 px-10 font-bold rounded-2xl">
+            Edit
+          </.button>
+        </.link>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Info -->
+  <div class="mt-12 flex flex-col items-center gap-6 opacity-80">
+    <img src={~p"/images/judiciary-logo.png"} class="h-16 w-auto grayscale contrast-125" alt="Judiciary Logo Small" />
+    <div class="text-center">
+      <p class="text-zinc-400 text-[10px] uppercase font-black tracking-[0.4em] mb-2">Directorate of ICT • J-VCS MVP v0.1.0</p>
+      <p class="text-zinc-500 text-[10px] font-medium tracking-wide">
+        Official Support: <a href="mailto:ict@judiciary.go.ke" class="text-judiciary-green font-bold underline">ict@judiciary.go.ke</a>
+      </p>
+    </div>
+  </div>
+</div>
 
 <.modal :if={@live_action == :edit} id="activity-modal" show on_cancel={JS.patch(~p"/activities/#{@activity}")}>
   <.live_component

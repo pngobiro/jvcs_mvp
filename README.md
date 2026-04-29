@@ -198,12 +198,19 @@ Legal requirements dictate that recordings cannot be tampered with:
 |-------|----------|-------------|
 | 1. Foundation | 4 Weeks | Setup K8s, Elixir Base, Auth, DB Design |
 | 2. Media Core | 8 Weeks | Membrane Integration, P2P/SFU switching |
-| 3. Evidence | 4 Weeks | Recording engine, Transcoding, MinIO WORM |
+| 3. Evidence | 4 Weeks | Recording engine, Transcoding, MinIO WORM, Local AI Transcription (OpenAI Whisper via Elixir Bumblebee) |
 | 4. Integration | 6 Weeks | CTS API, SMS Gateway, Email Notifications |
 | 5. Pilot | 4 Weeks | Deploy to Milimani Commercial & 2 Rural Stations |
 | 6. Handover | 2 Weeks | DevOps training, Manuals, Security Audit |
 
 **Total**: 28 weeks
+
+## Future Roadmap / TODO
+
+- [ ] **Sovereign Transcription**: Implement local Speech-to-Text using OpenAI Whisper via `Elixir Bumblebee` and `Nx` for high-accuracy, private court minutes.
+- [ ] **Membrane SFU Integration**: Scale from P2P Mesh to Selective Forwarding Unit for large sessions (10+ participants).
+- [ ] **Exhibit Management**: Synchronized document sharing (PDF/Images) with automated watermarking and legal timestamping.
+- [ ] **Automated Court Minutes**: LLM-assisted summarization of transcribed sessions for faster record processing.
 
 ## Development Workflow
 

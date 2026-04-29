@@ -44,4 +44,10 @@ defmodule JudiciaryWeb.ActivityLive.Index do
 
     {:noreply, stream_delete(socket, :activities, activity)}
   end
+
+  defp status_classes("in_progress"), do: "bg-red-100 text-red-700 border-red-200 shadow-sm"
+  defp status_classes("completed"), do: "bg-green-100 text-green-700 border-green-200"
+  defp status_classes("pending"), do: "bg-zinc-100 text-zinc-700 border-zinc-200"
+  defp status_classes("cancelled"), do: "bg-orange-100 text-zinc-500 border-zinc-200 opacity-50"
+  defp status_classes(_), do: "bg-zinc-50 text-zinc-500 border-zinc-100"
 end
