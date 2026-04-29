@@ -211,6 +211,11 @@ Legal requirements dictate that recordings cannot be tampered with:
 - [ ] **Membrane SFU Integration**: Scale from P2P Mesh to Selective Forwarding Unit for large sessions (10+ participants).
 - [ ] **Exhibit Management**: Synchronized document sharing (PDF/Images) with automated watermarking and legal timestamping.
 - [ ] **Automated Court Minutes**: LLM-assisted summarization of transcribed sessions for faster record processing.
+- [ ] **Digital Summons Automation**: Automated SMS and Email notifications with secure "Summons Links" for litigants and advocates.
+- [ ] **Private Consultation Breakout Rooms**: Secure, isolated audio/video channels (Side-bars) for advocates to consult with clients privately during recesses.
+- [ ] **Virtual Protocol Management**: Implementation of a "Raise Hand" and floor-request queue system managed by the Court Clerk.
+- [ ] **Biometric Authentication for the Bench**: Secure biometric or multi-factor authentication (MFA) for Judges and Judicial Officers.
+- [ ] **CTS/E-Filing Integration**: Deep integration with the Case Tracking System to pull case files and push session minutes automatically.
 
 ## Development Workflow
 
