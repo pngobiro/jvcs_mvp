@@ -1,64 +1,214 @@
-<div class="h-screen flex flex-col -m-4 sm:-m-6 lg:-m-8 bg-zinc-900 text-white" id="court-room">
+<div class="h-screen flex flex-col -m-4 sm:-m-6 lg:-m-8 bg-zinc-950 text-white overflow-hidden" id="court-room">
   <%= if is_nil(@display_name) do %>
-    <div class="flex-1 flex items-center justify-center">
-      <div class="bg-zinc-800 p-8 rounded-xl shadow-2xl w-full max-w-md border border-zinc-700">
-        <h2 class="text-2xl font-bold mb-6 text-center">Join Court Room</h2>
-        <p class="text-zinc-400 mb-6 text-center text-sm">Please enter your name to join the session.</p>
-        <form phx-submit="set_name" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium mb-2">Display Name</label>
-            <input type="text" name="name" required class="w-full bg-zinc-900 border-zinc-700 rounded-lg focus:ring-green-500 focus:border-green-500 text-white" placeholder="e.g. John Doe" />
+    <!-- Identity & Role Selection -->
+    <div class="flex-1 flex items-center justify-center bg-zinc-900">
+      <div class="bg-zinc-800 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-zinc-700">
+        <div class="mb-8 text-center">
+          <div class="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
           </div>
-          <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition-colors">
-            Continue to Session
+          <h2 class="text-3xl font-bold tracking-tight">Court Entry</h2>
+          <p class="text-zinc-400 mt-2">Identify yourself to join the session.</p>
+        </div>
+        
+        <form phx-submit="set_identity" class="space-y-6">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Your Full Name</label>
+            <input type="text" name="name" required class="w-full bg-zinc-900 border-zinc-700 rounded-xl focus:ring-green-500 focus:border-green-500 text-white p-3 transition-all" placeholder="e.g. Adv. Jane Doe" />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-semibold mb-2">Role</label>
+            <select name="role" class="w-full bg-zinc-900 border-zinc-700 rounded-xl focus:ring-green-500 focus:border-green-500 text-white p-3 appearance-none">
+              <option value="advocate">Advocate / Counsel</option>
+              <option value="litigant">Petitioner / Respondent</option>
+              <option value="guest">Public Observer</option>
+              <option value="clerk">Court Clerk (Internal)</option>
+              <option value="judge">Presiding Officer (Judge)</option>
+            </select>
+          </div>
+
+          <button type="submit" class="w-full bg-green-600 hover:bg-green-500 active:scale-[0.98] text-white font-bold py-4 rounded-xl transition-all shadow-lg">
+            Enter Court Lobby
           </button>
         </form>
       </div>
     </div>
+
   <% else %>
-    <div class="flex-1 p-4 flex flex-col" id="webrtc-container" phx-hook="WebRTC">
-      <div class="flex justify-between items-center mb-4">
-        <div>
-          <h1 class="text-xl font-semibold">{@activity.title}</h1>
-          <p class="text-sm text-zinc-400">Case No: {@activity.case_number} | Presiding: {@activity.judge_name}</p>
-        </div>
-        <div class="flex gap-2">
-          <span class="inline-flex items-center rounded-md bg-red-400/10 px-2 py-1 text-xs font-medium text-red-400 ring-1 ring-inset ring-red-400/20">
-            ● REC
-          </span>
-          <span class="inline-flex items-center rounded-md bg-green-500/10 px-2 py-1 text-xs font-medium text-green-400 ring-1 ring-inset ring-green-500/20">
-            P2P Mode
-          </span>
+    <%= if @status == "waiting" do %>
+      <!-- Waiting Room (Lobby) -->
+      <div class="flex-1 flex items-center justify-center bg-zinc-900">
+        <div class="text-center max-w-lg px-6">
+          <div class="mb-8 relative">
+            <div class="w-24 h-24 border-4 border-green-600/30 border-t-green-500 rounded-full animate-spin mx-auto"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="text-green-500 font-bold">...</span>
+            </div>
+          </div>
+          <h2 class="text-3xl font-bold mb-4">Lobby: Waiting for Admission</h2>
+          <p class="text-zinc-400 text-lg mb-8">
+            Greetings, <span class="text-white font-semibold">{@display_name}</span>. 
+            The Court Clerk or Presiding Officer has been notified of your presence. 
+            Please stay on this page; you will be admitted shortly.
+          </p>
+          <div class="bg-zinc-800/50 p-4 rounded-lg border border-zinc-700 text-sm text-zinc-300">
+            Current Session: <span class="text-white">{@activity.title}</span>
+          </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-[calc(100vh-160px)]" id="video-grid" phx-update="ignore">
-        <!-- Local Video -->
-        <div class="relative bg-black rounded-lg overflow-hidden border border-zinc-700 shadow-lg">
-          <video id="local-video" class="w-full h-full object-cover" autoplay muted playsinline></video>
-          <div class="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-xs">{@display_name} (You)</div>
-        </div>
-        <!-- Remote Videos will be appended here via JS -->
-      </div>
-    </div>
+    <% else %>
+      <!-- Active Court Room -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- Main Content (Video) -->
+        <div class="flex-1 flex flex-col p-4 relative" id="webrtc-container" phx-hook="WebRTC">
+          <!-- Court Header -->
+          <div class="flex justify-between items-start mb-6 bg-zinc-900/80 p-4 rounded-xl border border-zinc-800 backdrop-blur-md">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                <h1 class="text-lg font-bold tracking-tight">{@activity.title}</h1>
+              </div>
+              <p class="text-xs text-zinc-400 uppercase tracking-widest font-semibold">
+                Case: {@activity.case_number} • Presiding: {@activity.judge_name}
+              </p>
+            </div>
+            <div class="flex gap-3">
+              <div class="px-3 py-1 rounded-full bg-zinc-800 border border-zinc-700 text-[10px] font-bold uppercase tracking-tighter">
+                Role: {@role}
+              </div>
+              <div class="px-3 py-1 rounded-full bg-green-500/10 text-green-500 border border-green-500/20 text-[10px] font-bold uppercase tracking-tighter">
+                LIVE
+              </div>
+            </div>
+          </div>
 
-    <!-- Controls -->
-    <div class="h-20 bg-zinc-800 border-t border-zinc-700 flex items-center justify-center gap-4 px-4">
-      <button id="toggle-audio" class="p-3 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors">
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-        </svg>
-      </button>
-      <button id="toggle-video" class="p-3 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors">
-        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-        </svg>
-      </button>
-      <.link navigate={~p"/activities"} class="p-3 rounded-full bg-red-600 hover:bg-red-700 transition-colors">
-        <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
-        </svg>
-      </.link>
-    </div>
+          <!-- Video Grid -->
+          <div class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pr-2 custom-scrollbar" id="video-grid" phx-update="ignore">
+            <!-- Local Video -->
+            <div class="relative group bg-zinc-900 rounded-2xl overflow-hidden border-2 border-zinc-800 shadow-2xl aspect-video">
+              <video id="local-video" class="w-full h-full object-cover scale-x-[-1]" autoplay muted playsinline></video>
+              <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                <p class="text-sm font-medium">{@display_name} (You)</p>
+              </div>
+              <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="bg-black/40 backdrop-blur px-2 py-1 rounded text-[10px] uppercase font-bold">HD</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Controls Overlay -->
+          <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-zinc-900/90 backdrop-blur-xl px-6 py-3 rounded-2xl border border-zinc-700 shadow-2xl z-20">
+            <button id="toggle-audio" class="p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-all active:scale-95 group" title="Toggle Mic">
+              <svg class="w-6 h-6 group-hover:text-green-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+            <button id="toggle-video" class="p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-all active:scale-95 group" title="Toggle Camera">
+              <svg class="w-6 h-6 group-hover:text-green-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <div class="w-px h-8 bg-zinc-700 mx-2"></div>
+            <.link navigate={~p"/activities"} class="p-4 rounded-xl bg-red-600/20 hover:bg-red-600 transition-all active:scale-95 group text-red-500 hover:text-white" title="Leave Session">
+              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </.link>
+          </div>
+        </div>
+
+        <!-- Right Sidebar (Presence, Controls, Chat) -->
+        <div class="w-80 bg-zinc-900 border-l border-zinc-800 flex flex-col">
+          <!-- Tabs -->
+          <div class="flex border-b border-zinc-800">
+            <button class="flex-1 py-4 text-xs font-bold uppercase tracking-widest border-b-2 border-green-500">Court Flow</button>
+            <button class="flex-1 py-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Exhibits</button>
+          </div>
+
+          <!-- Participants & Management -->
+          <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
+            <!-- Admission Control (Judge/Clerk Only) -->
+            <%= if @role in ["judge", "clerk"] do %>
+              <div>
+                <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Admission Requests</h3>
+                <div class="space-y-2">
+                  <%= for {peer_id, %{metas: [meta | _]}} <- @peers, meta.status == "waiting" do %>
+                    <div class="bg-zinc-800 p-3 rounded-xl border border-zinc-700 flex items-center justify-between">
+                      <div>
+                        <p class="text-xs font-bold">{meta.display_name}</p>
+                        <p class="text-[10px] text-zinc-400 capitalize">{meta.role}</p>
+                      </div>
+                      <button 
+                        phx-click="admit_peer" 
+                        phx-value-peer_id={peer_id}
+                        class="bg-green-600 hover:bg-green-500 p-1.5 rounded-lg shadow-inner"
+                      >
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- In Session -->
+            <div>
+              <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Active in Session</h3>
+              <div class="space-y-1">
+                <%= for {_peer_id, %{metas: [meta | _]}} <- @peers, meta.status == "admitted" do %>
+                  <div class="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg transition-colors">
+                    <div class={"w-2 h-2 rounded-full #{if meta.role == "judge", do: "bg-red-500", else: "bg-green-500"}"}></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-medium truncate">{meta.display_name}</p>
+                    </div>
+                    <div class="text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">{meta.role}</div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <!-- Chat -->
+            <div class="pt-4 border-t border-zinc-800">
+              <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Live Session Chat</h3>
+              <div class="h-64 flex flex-col bg-zinc-950/50 rounded-xl border border-zinc-800 overflow-hidden">
+                <div class="flex-1 overflow-y-auto p-3 space-y-3 text-[11px] custom-scrollbar" id="chat-messages" phx-hook="ChatScroll">
+                  <%= for msg <- @messages do %>
+                    <div class={"#{if msg.type == "private", do: "bg-blue-900/20 border-l-2 border-blue-500 px-2 py-1", else: ""}"}>
+                      <span class="font-bold text-zinc-400">{msg.from}:</span>
+                      <span class="text-zinc-200 ml-1">{msg.body}</span>
+                      <%= if msg.type == "private" do %>
+                        <span class="text-[8px] text-blue-400 block uppercase font-black mt-1">Private Counsel Channel</span>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+                <form phx-submit="send_message" class="p-2 bg-zinc-900 border-t border-zinc-800 flex gap-2">
+                  <input type="hidden" name="to" value="all" />
+                  <input type="text" name="body" required class="flex-1 bg-zinc-800 border-transparent rounded-lg text-[11px] focus:ring-green-500 focus:border-green-500 px-2 py-1.5" placeholder="Type a message..." />
+                  <button type="submit" class="bg-zinc-700 p-1.5 rounded-lg">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
   <% end %>
 </div>
+
+<style>
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
+</style>
