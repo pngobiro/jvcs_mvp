@@ -12,6 +12,11 @@ defmodule JudiciaryWeb.MediaController do
         if activity_id do
           activity = Judiciary.Court.get_activity!(activity_id)
           Judiciary.Court.update_activity(activity, %{recording_url: url, status: "completed"})
+          
+          # Trigger transcription in background
+          %{activity_id: activity_id, recording_url: url}
+          |> Judiciary.Workers.Transcriber.new()
+          |> Oban.insert()
         end
         
         json(conn, %{status: "ok", url: url})

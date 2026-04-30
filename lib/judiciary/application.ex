@@ -12,6 +12,7 @@ defmodule Judiciary.Application do
       Judiciary.Repo,
       {DNSCluster, query: Application.get_env(:judiciary, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Judiciary.PubSub},
+      {Oban, Application.fetch_env!(:judiciary, Oban)},
       JudiciaryWeb.Presence,
       # Media pipeline supervision tree with fault tolerance
       Judiciary.Media.Supervisor,
