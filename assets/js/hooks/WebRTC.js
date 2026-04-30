@@ -239,15 +239,56 @@ const WebRTC = {
   saveRecording(chunks, ext, filename) {
     const blob = new Blob(chunks, { type: `${ext === "webm" ? "video" : "audio"}/webm` });
     const url = URL.createObjectURL(blob);
+    
+    // Download locally
     const a = document.createElement("a");
     document.body.appendChild(a);
     a.style = "display: none";
     a.href = url;
     const dateStr = new Date().toISOString().replace(/[:.]/g, "-");
-    a.download = `${filename}-${dateStr}.${ext}`;
+    const fullFilename = `${filename}-${dateStr}.${ext}`;
+    a.download = fullFilename;
     a.click();
     window.URL.revokeObjectURL(url);
     document.body.removeChild(a);
+
+    // Upload to R2 via server
+    this.uploadRecording(blob, fullFilename);
+  },
+
+  async uploadRecording(blob, filename) {
+    this.showNotification("Uploading recording to secure vault...", "info");
+    
+    const activityId = this.el.dataset.activityId;
+    const formData = new FormData();
+    formData.append("file", blob);
+    formData.append("filename", filename);
+    if (activityId) {
+      formData.append("activity_id", activityId);
+    }
+
+    const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+
+    try {
+      const response = await fetch("/api/media/upload", {
+        method: "POST",
+        body: formData,
+        headers: {
+          "x-csrf-token": csrfToken
+        }
+      });
+
+      const result = await response.json();
+      if (result.status === "ok") {
+        this.showSuccess("Recording safely archived in secure vault");
+        console.log("Recording uploaded:", result.url);
+      } else {
+        throw new Error(result.message || "Upload failed");
+      }
+    } catch (err) {
+      console.error("Upload error:", err);
+      this.showError("Failed to archive recording. Please keep your local copy.");
+    }
   },
 
   createPeerConnection(peerId, displayName, configuration, isInitiator) {
@@ -439,7 +480,8 @@ const WebRTC = {
     const colors = {
       error: "bg-red-500/20 border border-red-500 text-red-200",
       warning: "bg-yellow-500/20 border border-yellow-500 text-yellow-200",
-      success: "bg-green-500/20 border border-green-500 text-green-200"
+      success: "bg-green-500/20 border border-green-500 text-green-200",
+      info: "bg-blue-500/20 border border-blue-500 text-blue-200"
     };
     
     notification.className = `p-3 rounded-lg mb-2 text-sm animate-in fade-in ${colors[type]}`;

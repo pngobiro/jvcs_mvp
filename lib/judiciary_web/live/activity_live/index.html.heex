@@ -72,7 +72,7 @@
       <:col :let={{_id, activity}} label="CASE REFERENCE" class="font-mono font-bold text-judiciary-green tracking-tighter uppercase">
         {activity.case_number}
       </:col>
-      <:col :let={{_id, activity}} label="HEARING TITLE" class="font-bold text-zinc-900">
+      <:col :let={{_id, activity}} label="CITATION" class="font-bold text-zinc-900">
         <div class="max-w-xs md:max-w-md truncate" title={activity.title}>
           {activity.title}
         </div>
@@ -104,6 +104,11 @@
       </:col>
       <:action :let={{_id, activity}}>
         <div class="flex items-center gap-4">
+          <%= if activity.recording_url do %>
+            <a href={activity.recording_url} target="_blank" class="text-zinc-400 hover:text-judiciary-gold transition-colors" title="Download Recording">
+              <.icon name="hero-arrow-down-tray" class="w-5 h-5" />
+            </a>
+          <% end %>
           <.link navigate={~p"/activities/#{activity}"} class="text-zinc-400 hover:text-judiciary-green transition-colors" title="View Dossier">
             <.icon name="hero-document-text" class="w-5 h-5" />
           </.link>

@@ -23,6 +23,24 @@ end
 config :judiciary, JudiciaryWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Cloudflare R2 Configuration
+r2_account_id = System.get_env("R2_ACCOUNT_ID")
+r2_bucket = System.get_env("R2_BUCKET", "jvcs-court-recordings")
+
+config :ex_aws,
+  access_key_id: System.get_env("R2_ACCESS_KEY_ID"),
+  secret_access_key: System.get_env("R2_SECRET_ACCESS_KEY"),
+  region: "auto"
+
+config :ex_aws, :s3,
+  scheme: "https://",
+  host: "#{r2_account_id}.r2.cloudflarestorage.com",
+  region: "auto"
+
+config :judiciary, :r2,
+  bucket: r2_bucket,
+  public_url: System.get_env("R2_PUBLIC_URL")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

@@ -9,6 +9,7 @@ defmodule Judiciary.Court.Activity do
     field :status, :string, default: "pending"
     field :judge_name, :string
     field :link, :string
+    field :recording_url, :string
 
     belongs_to :court, Judiciary.Court.CourtHouse
     belongs_to :judge, Judiciary.Accounts.User
@@ -18,7 +19,7 @@ defmodule Judiciary.Court.Activity do
   @doc false
   def changeset(activity, attrs) do
     activity
-    |> cast(attrs, [:case_number, :title, :start_time, :status, :judge_name, :court_id, :judge_id, :link])
+    |> cast(attrs, [:case_number, :title, :start_time, :status, :judge_name, :court_id, :judge_id, :link, :recording_url])
     |> validate_required([:case_number, :title, :start_time, :judge_name])
   end
 end

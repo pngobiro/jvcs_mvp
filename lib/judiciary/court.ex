@@ -62,8 +62,13 @@ defmodule Judiciary.Court do
     |> Activity.changeset(attrs)
     |> Repo.update()
     |> case do
-      {:ok, activity} -> {:ok, Repo.preload(activity, [:court, :judge])}
-      error -> error
+      {:ok, activity} ->
+        activity = Repo.preload(activity, [:court, :judge])
+        Phoenix.PubSub.broadcast(Judiciary.PubSub, "activities", {:activity_updated, activity})
+        {:ok, activity}
+
+      error ->
+        error
     end
   end
 

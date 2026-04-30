@@ -6,6 +6,10 @@ defmodule JudiciaryWeb.ActivityLive.Index do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Judiciary.PubSub, "activities")
+    end
+
     {:ok, stream(socket, :activities, Court.list_activities())}
   end
 
@@ -30,6 +34,11 @@ defmodule JudiciaryWeb.ActivityLive.Index do
     socket
     |> assign(:page_title, "Listing Activities")
     |> assign(:activity, nil)
+  end
+
+  @impl true
+  def handle_info({:activity_updated, activity}, socket) do
+    {:noreply, stream_insert(socket, :activities, activity)}
   end
 
   @impl true

@@ -82,7 +82,7 @@
       <!-- Active Court Room -->
       <div class="flex-1 flex overflow-hidden">
         <!-- Main Content (Video) -->
-        <div class="flex-1 flex flex-col p-2 sm:p-4 relative" id="webrtc-container" phx-hook="WebRTC">
+        <div class="flex-1 flex flex-col p-2 sm:p-4 relative" id="webrtc-container" phx-hook="WebRTC" data-activity-id={@activity.id}>
           <!-- Court Header -->
           <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4 sm:mb-6 bg-zinc-900/80 p-3 sm:p-4 rounded-xl border border-zinc-800 backdrop-blur-md shadow-2xl">
             <div class="flex items-center gap-3 sm:gap-4">

@@ -67,6 +67,12 @@ defmodule Judiciary.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       
+      # Storage and Cloudflare R2
+      {:ex_aws, "~> 2.5"},
+      {:ex_aws_s3, "~> 2.5"},
+      {:sweet_xml, "~> 0.7"},
+      {:hackney, "~> 1.20"},
+      
       # J-VCS specific dependencies
       {:membrane_webrtc_plugin, "~> 0.26"},
       {:boombox, "~> 0.2"},
