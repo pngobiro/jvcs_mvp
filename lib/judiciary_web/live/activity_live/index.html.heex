@@ -101,6 +101,11 @@
       </:col>
       <:action :let={{_id, activity}}>
         <div class="flex items-center gap-4">
+          <%= if activity.transcript_url do %>
+            <a href={activity.transcript_url} target="_blank" class="text-zinc-400 hover:text-blue-500 transition-colors" title="Download Transcript">
+              <.icon name="hero-document-text" class="w-5 h-5" />
+            </a>
+          <% end %>
           <%= if activity.recording_url do %>
             <a href={activity.recording_url} target="_blank" class="text-zinc-400 hover:text-judiciary-gold transition-colors" title="Download Recording">
               <.icon name="hero-arrow-down-tray" class="w-5 h-5" />
