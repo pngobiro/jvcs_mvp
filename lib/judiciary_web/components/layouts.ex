@@ -18,40 +18,38 @@ defmodule JudiciaryWeb.Layouts do
     default: nil,
     doc: "the current scope"
 
-  slot :inner_block, required: true
-
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8 bg-judiciary-green text-white shadow-xl border-b-[6px] border-judiciary-gold">
-      <div class="flex-1">
-        <a href="/" class="flex items-center gap-4 group">
+    <header class="navbar px-4 sm:px-6 lg:px-8 bg-judiciary-green text-white shadow-xl border-b-[6px] border-judiciary-gold flex flex-col md:flex-row items-center gap-4 py-4 md:py-0">
+      <div class="flex-1 w-full md:w-auto">
+        <a href="/" class="flex items-center gap-3 md:gap-4 group justify-center md:justify-start">
           <div class="p-1 bg-white rounded-xl shadow-lg group-hover:scale-105 transition-transform">
-            <img src={~p"/images/judiciary-logo.png"} class="h-14 w-auto object-contain" alt="Judiciary Logo" />
+            <img src={~p"/images/judiciary-logo.png"} class="h-10 md:h-14 w-auto object-contain" alt="Judiciary Logo" />
           </div>
           <div class="flex flex-col">
-            <span class="text-xl font-black tracking-tight leading-none group-hover:text-judiciary-gold-light transition-colors">THE JUDICIARY</span>
-            <span class="text-[10px] font-bold tracking-[0.25em] text-judiciary-gold-light uppercase opacity-90">Republic of Kenya</span>
+            <span class="text-lg md:text-xl font-black tracking-tight leading-none group-hover:text-judiciary-gold-light transition-colors">THE JUDICIARY</span>
+            <span class="text-[8px] md:text-[10px] font-bold tracking-[0.25em] text-judiciary-gold-light uppercase opacity-90">Republic of Kenya</span>
           </div>
         </a>
       </div>
-      <div class="flex-none">
-        <ul class="flex flex-row px-1 space-x-8 items-center">
+      <div class="flex-none w-full md:w-auto">
+        <ul class="flex flex-row justify-center md:justify-end px-1 space-x-4 md:space-x-8 items-center overflow-x-auto no-scrollbar">
           <li>
-            <.link href={~p"/activities"} class="text-sm font-black uppercase tracking-widest hover:text-judiciary-gold-light transition-all border-b-2 border-transparent hover:border-judiciary-gold pb-1">
+            <.link href={~p"/activities"} class="text-xs md:text-sm font-black uppercase tracking-widest hover:text-judiciary-gold-light transition-all border-b-2 border-transparent hover:border-judiciary-gold pb-1 whitespace-nowrap">
               Causelist
             </.link>
           </li>
           <%= if @current_scope && @current_scope.user do %>
-            <li class="text-[0.8125rem] leading-6 text-zinc-300">
+            <li class="hidden sm:block text-[0.8125rem] leading-6 text-zinc-300 truncate max-w-[150px]">
               {@current_scope.user.email}
             </li>
             <li>
-              <.link href={~p"/users/log_out"} method="delete" class="text-[0.8125rem] leading-6 font-semibold hover:text-zinc-300">
+              <.link href={~p"/users/log-out"} method="delete" class="text-xs md:text-[0.8125rem] leading-6 font-semibold hover:text-zinc-300 whitespace-nowrap">
                 Log out
               </.link>
             </li>
           <% end %>
-          <li>
+          <li class="shrink-0">
             <.theme_toggle />
           </li>
         </ul>
@@ -60,7 +58,7 @@ defmodule JudiciaryWeb.Layouts do
 
     <main class="px-4 py-8 sm:px-6 lg:px-8">
       <div class="mx-auto max-w-5xl space-y-4">
-        {render_slot(@inner_block)}
+        {@inner_content}
       </div>
     </main>
 

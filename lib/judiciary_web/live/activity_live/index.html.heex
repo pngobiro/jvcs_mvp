@@ -1,12 +1,17 @@
 <div class="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
   <!-- Page Header -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-    <div>
-      <h1 class="text-3xl font-black tracking-tight text-zinc-900 flex items-center gap-3">
-        <span class="w-2 h-10 bg-judiciary-green rounded-full"></span>
-        Virtual Court Causelist
-      </h1>
-      <p class="text-zinc-500 mt-2 font-medium italic border-l-2 border-judiciary-gold pl-3">Daily schedule of active and upcoming digital hearings.</p>
+    <div class="flex items-center gap-6">
+      <div class="p-2 bg-white rounded-xl shadow-md border-b-2 border-judiciary-gold hidden sm:block">
+        <img src={~p"/images/judiciary-logo.png"} class="h-16 w-auto object-contain" alt="Judiciary Logo" />
+      </div>
+      <div>
+        <h1 class="text-3xl font-black tracking-tight text-zinc-900 flex items-center gap-3">
+          <span class="w-2 h-10 bg-judiciary-green rounded-full"></span>
+          Virtual Court Causelist
+        </h1>
+        <p class="text-zinc-500 mt-2 font-medium italic border-l-2 border-judiciary-gold pl-3">Daily schedule of active and upcoming digital hearings.</p>
+      </div>
     </div>
     
     <div class="flex items-center gap-4">
@@ -72,6 +77,12 @@
           {activity.title}
         </div>
       </:col>
+      <:col :let={{_id, activity}} label="COURT" class="font-bold text-zinc-900">
+        <div class="flex flex-col">
+          <span class="text-xs font-bold text-zinc-700">{if activity.court, do: activity.court.name, else: "N/A"}</span>
+          <span class="text-[10px] uppercase font-bold tracking-tighter text-zinc-400">{if activity.court, do: activity.court.code, else: ""}</span>
+        </div>
+      </:col>
       <:col :let={{_id, activity}} label="PRESIDING" class="text-zinc-600 font-medium">
         <div class="flex items-center gap-2">
           <div class="w-6 h-6 bg-zinc-100 rounded-md flex items-center justify-center text-[10px] font-bold text-zinc-500 border border-zinc-200">
@@ -116,10 +127,6 @@
         </.link>
       </:action>
     </.table>
-
-    <div class="p-6 bg-zinc-50 border-t border-zinc-100">
-      <p class="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.2em] text-center italic">Official Judiciary Virtual Court Interface • Secure & Sovereign</p>
-    </div>
   </div>
 </div>
 

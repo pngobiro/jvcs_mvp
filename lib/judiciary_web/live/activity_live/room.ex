@@ -22,7 +22,13 @@ defmodule JudiciaryWeb.ActivityLive.Room do
      |> assign(:status, "waiting") # waiting | admitted
      |> assign(:peers, %{})
      |> assign(:messages, [])
-     |> assign(:current_peer_id, nil)}
+     |> assign(:current_peer_id, nil)
+     |> assign(:sidebar_open, false)}
+  end
+
+  @impl true
+  def handle_event("toggle_sidebar", _params, socket) do
+    {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
   end
 
   @impl true

@@ -19,6 +19,21 @@ defmodule JudiciaryWeb.ActivityLive.FormComponent do
         phx-change="validate"
         phx-submit="save"
       >
+        <.input
+          field={@form[:court_id]}
+          type="select"
+          label="Court"
+          options={@court_options}
+          prompt="Select a Court"
+        />
+        <.input
+          field={@form[:judge_id]}
+          type="select"
+          label="Presiding Judge"
+          options={@judge_options}
+          prompt="Select a Judge"
+        />
+        <.input field={@form[:link]} type="text" label="Meeting Link" />
         <.input field={@form[:case_number]} type="text" label="Case number" />
         <.input field={@form[:title]} type="text" label="Title" />
         <.input field={@form[:start_time]} type="datetime-local" label="Start time" />
@@ -40,10 +55,17 @@ defmodule JudiciaryWeb.ActivityLive.FormComponent do
   @impl true
   def update(%{activity: activity} = assigns, socket) do
     changeset = Court.change_activity(activity)
+    courts = Court.list_courts()
+    court_options = Enum.map(courts, &{&1.name, &1.id})
+
+    judges = Judiciary.Accounts.list_users() |> Enum.filter(&(&1.role == "judge"))
+    judge_options = Enum.map(judges, &{&1.name, &1.id})
 
     {:ok,
      socket
      |> assign(assigns)
+     |> assign(:court_options, court_options)
+     |> assign(:judge_options, judge_options)
      |> assign_form(changeset)}
   end
 

@@ -3,6 +3,9 @@ defmodule JudiciaryWeb.PageControllerTest do
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Peace of mind from prototype to production"
+    response = html_response(conn, 200)
+    assert response =~ "Judiciary"
+    assert response =~ "Virtual Court"
+    assert response =~ "System"
   end
 end

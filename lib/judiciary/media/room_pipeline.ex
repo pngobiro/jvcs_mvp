@@ -20,13 +20,13 @@ defmodule Judiciary.Media.RoomPipeline do
     {:ok, self()}
   end
 
-  def add_peer(pipeline, peer_id) do
+  def add_peer(_pipeline, peer_id) do
     Logger.info("Adding peer #{peer_id} to Membrane Pipeline")
     # Membrane.Pipeline.cast(pipeline, {:add_peer, peer_id})
     :ok
   end
 
-  def remove_peer(pipeline, peer_id) do
+  def remove_peer(_pipeline, peer_id) do
     Logger.info("Removing peer #{peer_id} from Membrane Pipeline")
     # Membrane.Pipeline.cast(pipeline, {:remove_peer, peer_id})
     :ok
@@ -36,6 +36,4 @@ defmodule Judiciary.Media.RoomPipeline do
   #   # Initialize Membrane WebRTC Endpoint and required bins
   #   {[], %{room_id: opts.room_id}}
   # end
-
-  defp name(room_id), do: {:via, Registry, {Judiciary.MediaRegistry, room_id}}
 end

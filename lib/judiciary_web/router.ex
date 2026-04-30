@@ -23,11 +23,16 @@ defmodule JudiciaryWeb.Router do
     get "/", PageController, :home
 
     # Zoom-style access: Publicly accessible activities and rooms
-    live "/activities", ActivityLive.Index, :index
-    live "/activities/new", ActivityLive.Index, :new
-    live "/activities/:id/edit", ActivityLive.Index, :edit
-    live "/activities/:id", ActivityLive.Show, :show
-    live "/activities/:id/show/edit", ActivityLive.Show, :edit
+    live_session :public_activities,
+      on_mount: [{JudiciaryWeb.UserAuth, :mount_current_scope}],
+      layout: {JudiciaryWeb.Layouts, :app} do
+      live "/activities", ActivityLive.Index, :index
+      live "/activities/new", ActivityLive.Index, :new
+      live "/activities/:id/edit", ActivityLive.Index, :edit
+      live "/activities/:id", ActivityLive.Show, :show
+      live "/activities/:id/show/edit", ActivityLive.Show, :edit
+    end
+
     live "/activities/:id/room", ActivityLive.Room, :room
   end
 
@@ -39,12 +44,13 @@ defmodule JudiciaryWeb.Router do
     live_session :current_scope,
       on_mount: [{JudiciaryWeb.UserAuth, :mount_current_scope}] do
       live "/users/register", UserLive.Registration, :new
-      live "/users/log_in", UserLive.Login, :new
+      live "/users/log-in", UserLive.Login, :new
+      live "/users/log-in/:token", UserLive.Login, :new
     end
 
-    post "/users/log_in", UserSessionController, :create
-    post "/users/update_password", UserSessionController, :update_password
-    delete "/users/log_out", UserSessionController, :delete
+    post "/users/log-in", UserSessionController, :create
+    post "/users/update-password", UserSessionController, :update_password
+    delete "/users/log-out", UserSessionController, :delete
   end
 
   scope "/", JudiciaryWeb do
@@ -53,6 +59,7 @@ defmodule JudiciaryWeb.Router do
     live_session :require_authenticated_user,
       on_mount: [{JudiciaryWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
+      live "/users/settings/confirm-email/:token", UserLive.Settings, :edit
     end
   end
 

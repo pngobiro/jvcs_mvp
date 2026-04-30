@@ -8,7 +8,7 @@ defmodule JudiciaryWeb.UserLive.Settings do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    
       <div class="text-center">
         <.header>
           Account Settings
@@ -32,9 +32,8 @@ defmodule JudiciaryWeb.UserLive.Settings do
       <.form
         for={@password_form}
         id="password_form"
-        action={~p"/users/update_password"}
+        action={~p"/users/update-password"}
         method="post"
-        phx-change="validate_password"
         phx-submit="update_password"
         phx-trigger-action={@trigger_submit}
       >
@@ -62,7 +61,7 @@ defmodule JudiciaryWeb.UserLive.Settings do
           Save Password
         </.button>
       </.form>
-    </Layouts.app>
+    
     """
   end
 
@@ -118,7 +117,7 @@ defmodule JudiciaryWeb.UserLive.Settings do
         Accounts.deliver_user_update_email_instructions(
           Ecto.Changeset.apply_action!(changeset, :insert),
           user.email,
-          &url(~p"/users/settings/confirm_email/#{&1}")
+          &url(~p"/users/settings/confirm-email/#{&1}")
         )
 
         info = "A link to confirm your email change has been sent to the new address."

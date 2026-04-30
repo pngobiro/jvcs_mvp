@@ -29,15 +29,34 @@
     <div class="p-8 bg-zinc-50/50">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
         <div class="space-y-6">
-          <h3 class="text-xs font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-200 pb-2">Presiding Officer</h3>
+          <h3 class="text-xs font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-200 pb-2">Presiding Officer & Court</h3>
           <div class="flex items-center gap-4">
             <div class="w-14 h-14 bg-judiciary-green text-judiciary-gold-light rounded-2xl flex items-center justify-center font-bold text-2xl shadow-xl border-2 border-judiciary-gold">
               {String.at(@activity.judge_name, 5) || "J"}
             </div>
             <div>
               <p class="font-bold text-zinc-900 text-xl tracking-tight">{@activity.judge_name}</p>
-              <p class="text-xs font-black text-judiciary-green uppercase tracking-widest">Republic of Kenya</p>
+              <p class="text-xs font-bold text-judiciary-green uppercase tracking-widest">
+                {if @activity.court, do: @activity.court.name, else: "Republic of Kenya"}
+              </p>
+              <p class="text-[10px] font-black text-zinc-400 uppercase tracking-tighter">
+                {if @activity.court, do: "CODE: " <> @activity.court.code, else: ""}
+              </p>
+              
+              <div :if={@activity.judge && @activity.judge.link} class="mt-2">
+                <a href={@activity.judge.link} target="_blank" class="text-[10px] font-bold text-judiciary-gold uppercase tracking-widest hover:underline flex items-center gap-1">
+                  <.icon name="hero-building-library-solid" class="w-3 h-3" />
+                  Virtual Chambers
+                </a>
+              </div>
             </div>
+          </div>
+          
+          <div :if={@activity.link} class="mt-4 p-4 bg-zinc-100 rounded-xl border border-zinc-200">
+            <p class="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Secure Link</p>
+            <a href={@activity.link} target="_blank" class="text-xs font-mono text-judiciary-green break-all underline">
+              {@activity.link}
+            </a>
           </div>
         </div>
 
@@ -76,17 +95,6 @@
           </.button>
         </.link>
       </div>
-    </div>
-  </div>
-
-  <!-- Footer Info -->
-  <div class="mt-12 flex flex-col items-center gap-6 opacity-80">
-    <img src={~p"/images/judiciary-logo.png"} class="h-16 w-auto grayscale contrast-125" alt="Judiciary Logo Small" />
-    <div class="text-center">
-      <p class="text-zinc-400 text-[10px] uppercase font-black tracking-[0.4em] mb-2">Directorate of ICT • J-VCS MVP v0.1.0</p>
-      <p class="text-zinc-500 text-[10px] font-medium tracking-wide">
-        Official Support: <a href="mailto:ict@judiciary.go.ke" class="text-judiciary-green font-bold underline">ict@judiciary.go.ke</a>
-      </p>
     </div>
   </div>
 </div>

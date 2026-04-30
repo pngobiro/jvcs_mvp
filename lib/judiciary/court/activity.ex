@@ -8,14 +8,17 @@ defmodule Judiciary.Court.Activity do
     field :start_time, :utc_datetime
     field :status, :string, default: "pending"
     field :judge_name, :string
+    field :link, :string
 
+    belongs_to :court, Judiciary.Court.CourtHouse
+    belongs_to :judge, Judiciary.Accounts.User
     timestamps(type: :utc_datetime)
   end
 
   @doc false
   def changeset(activity, attrs) do
     activity
-    |> cast(attrs, [:case_number, :title, :start_time, :status, :judge_name])
+    |> cast(attrs, [:case_number, :title, :start_time, :status, :judge_name, :court_id, :judge_id, :link])
     |> validate_required([:case_number, :title, :start_time, :judge_name])
   end
 end

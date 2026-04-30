@@ -11,6 +11,13 @@ defmodule Judiciary.Accounts do
   ## Database getters
 
   @doc """
+  Returns the list of users.
+  """
+  def list_users do
+    Repo.all(User)
+  end
+
+  @doc """
   Gets a user by email.
 
   ## Examples

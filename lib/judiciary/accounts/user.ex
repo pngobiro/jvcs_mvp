@@ -8,24 +8,19 @@ defmodule Judiciary.Accounts.User do
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
+    field :name, :string
+    field :role, :string
+    field :link, :string
 
     timestamps(type: :utc_datetime)
   end
 
   @doc """
   A user changeset for registering or changing the email.
-
-  It requires the email to change otherwise an error is added.
-
-  ## Options
-
-    * `:validate_unique` - Set to false if you don't want to validate the
-      uniqueness of the email, useful when displaying live validations.
-      Defaults to `true`.
   """
   def email_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email])
+    |> cast(attrs, [:email, :name, :role, :link])
     |> validate_email(opts)
   end
 
