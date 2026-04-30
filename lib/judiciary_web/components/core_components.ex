@@ -561,11 +561,12 @@ defmodule JudiciaryWeb.CoreComponents do
   Renders a back navigation link.
   """
   attr :navigate, :any, required: true
+  attr :rest, :global, default: %{}
   slot :inner_block, required: true
 
   def back(assigns) do
     ~H"""
-    <div class="mt-16">
+    <div class="mt-16" {@rest}>
       <.link navigate={@navigate} class="text-sm font-semibold leading-6 text-zinc-900 hover:text-zinc-700">
         <.icon name="hero-arrow-left-solid" class="h-3 w-3" />
         {render_slot(@inner_block)}
@@ -573,7 +574,6 @@ defmodule JudiciaryWeb.CoreComponents do
     </div>
     """
   end
-
   def show_modal(js \\ %JS{}, id) when is_binary(id) do
     js
     |> JS.show(to: "##{id}")

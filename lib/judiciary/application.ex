@@ -13,6 +13,8 @@ defmodule Judiciary.Application do
       {DNSCluster, query: Application.get_env(:judiciary, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Judiciary.PubSub},
       JudiciaryWeb.Presence,
+      # Media pipeline supervision tree with fault tolerance
+      Judiciary.Media.Supervisor,
       # Start a worker by calling: Judiciary.Worker.start_link(arg)
       # {Judiciary.Worker, arg},
       # Start to serve requests, typically the last entry

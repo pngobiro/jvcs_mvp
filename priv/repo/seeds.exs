@@ -24,9 +24,14 @@ courts = [
 ]
 
 court_records = Enum.map(courts, fn attrs ->
-  %CourtHouse{}
-  |> CourtHouse.changeset(attrs)
-  |> Repo.insert!()
+  case Repo.get_by(CourtHouse, code: attrs.code) do
+    nil ->
+      %CourtHouse{}
+      |> CourtHouse.changeset(attrs)
+      |> Repo.insert!()
+    court ->
+      court
+  end
 end)
 
 milimani_1 = Enum.find(court_records, &(&1.code == "MIL-H-01"))
@@ -62,8 +67,13 @@ judges = [
 ]
 
 judge_records = Enum.map(judges, fn attrs ->
-  {:ok, user} = Judiciary.Accounts.register_user(attrs)
-  user
+  case Judiciary.Accounts.get_user_by_email(attrs.email) do
+    nil ->
+      {:ok, user} = Judiciary.Accounts.register_user(attrs)
+      user
+    user ->
+      user
+  end
 end)
 
 IO.puts "Seeding court activities..."

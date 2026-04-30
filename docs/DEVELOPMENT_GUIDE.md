@@ -702,7 +702,7 @@ require Logger
 
 Logger.debug("Debug message", user_id: user.id)
 Logger.info("Session started", session_id: session.id)
-Logger.warn("Low bandwidth detected", quality: :poor)
+Logger.warning("Low bandwidth detected", quality: :poor)
 Logger.error("Failed to start recording", reason: error)
 ```
 

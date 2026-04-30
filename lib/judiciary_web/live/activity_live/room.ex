@@ -1,16 +1,33 @@
 defmodule JudiciaryWeb.ActivityLive.Room do
   use JudiciaryWeb, :live_view
 
+  require Logger
+
   alias Judiciary.Court
+  alias Judiciary.Media.RoomSession
   alias JudiciaryWeb.Presence
   alias Phoenix.PubSub
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     activity = Court.get_activity!(id)
-    
+
     if connected?(socket) do
       PubSub.subscribe(Judiciary.PubSub, "room:#{activity.id}")
+      # Attempt to start room session (non-blocking, doesn't fail if not available)
+      spawn(fn ->
+        try do
+          case start_room_session(activity.id) do
+            {:ok, _pid} ->
+              Logger.info("Room session started for room: #{activity.id}")
+            {:error, reason} ->
+              Logger.warning("Room session not available (fault tolerance disabled): #{inspect(reason)}")
+          end
+        rescue
+          e ->
+            Logger.warning("Error starting room session: #{inspect(e)}")
+        end
+      end)
     end
 
     {:ok,
@@ -23,7 +40,9 @@ defmodule JudiciaryWeb.ActivityLive.Room do
      |> assign(:peers, %{})
      |> assign(:messages, [])
      |> assign(:current_peer_id, nil)
-     |> assign(:sidebar_open, false)}
+     |> assign(:sidebar_open, false)
+     |> assign(:connection_status, :connecting)
+     |> assign(:error_message, nil)}
   end
 
   @impl true
@@ -36,7 +55,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
     peer_id = M.random_id()
     # Judge and Clerk are admitted by default for the MVP, others start in waiting
     status = if role in ["judge", "clerk"], do: "admitted", else: "waiting"
-    
+
     if connected?(socket) do
       Presence.track(self(), "room:#{socket.assigns.activity.id}", peer_id, %{
         display_name: name,
@@ -44,6 +63,17 @@ defmodule JudiciaryWeb.ActivityLive.Room do
         status: status,
         online_at: System.system_time(:second)
       })
+
+      # Register peer with room session for state tracking
+      case RoomSession.add_peer(socket.assigns.activity.id, peer_id, %{
+        name: name,
+        role: role
+      }) do
+        {:ok, _} ->
+          Logger.info("Peer #{peer_id} registered with room session")
+        {:error, reason} ->
+          Logger.error("Failed to register peer: #{inspect(reason)}")
+      end
     end
 
     {:noreply,
@@ -51,7 +81,8 @@ defmodule JudiciaryWeb.ActivityLive.Room do
      |> assign(:display_name, name)
      |> assign(:role, role)
      |> assign(:status, status)
-     |> assign(:current_peer_id, peer_id)}
+     |> assign(:current_peer_id, peer_id)
+     |> assign(:connection_status, :connected)}
   end
 
   @impl true
@@ -86,16 +117,22 @@ defmodule JudiciaryWeb.ActivityLive.Room do
 
   @impl true
   def handle_event("join_call", _params, socket) do
-    PubSub.broadcast_from(Judiciary.PubSub, self(), "room:#{socket.assigns.activity.id}", 
+    PubSub.broadcast_from(Judiciary.PubSub, self(), "room:#{socket.assigns.activity.id}",
       {:peer_joined_call, socket.assigns.current_peer_id, socket.assigns.display_name})
-    {:noreply, socket}
+    {:noreply, assign(socket, :connection_status, :connected)}
   end
 
   @impl true
   def handle_event("webrtc_signaling", %{"to" => to, "payload" => payload}, socket) do
-    PubSub.broadcast(Judiciary.PubSub, "room:#{socket.assigns.activity.id}", 
-      {:webrtc_signaling, to, socket.assigns.current_peer_id, payload})
-    {:noreply, socket}
+    # Send through room session for queuing and retry logic
+    case RoomSession.send_signal(socket.assigns.activity.id, socket.assigns.current_peer_id, to, payload) do
+      :ok ->
+        {:noreply, socket}
+      {:error, reason} ->
+        Logger.error("Failed to send signal: #{inspect(reason)}")
+        error_msg = "Signal delivery failed: #{inspect(reason)}"
+        {:noreply, assign(socket, :error_message, error_msg)}
+    end
   end
 
   @impl true
@@ -143,6 +180,31 @@ defmodule JudiciaryWeb.ActivityLive.Room do
     else
       {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_info({:connection_error, error}, socket) do
+    Logger.error("Connection error: #{inspect(error)}")
+    {:noreply, assign(socket, :error_message, error)}
+  end
+
+  @impl true
+  def terminate(_reason, socket) do
+    if socket.assigns.current_peer_id do
+      case RoomSession.remove_peer(socket.assigns.activity.id, socket.assigns.current_peer_id) do
+        :ok ->
+          Logger.info("Peer #{socket.assigns.current_peer_id} removed from room session")
+        {:error, err} ->
+          Logger.error("Error removing peer: #{inspect(err)}")
+      end
+    end
+    :ok
+  end
+
+  ## Helpers
+
+  defp start_room_session(room_id) do
+    Judiciary.Media.RoomSupervisor.start_room(room_id)
   end
 end
 
