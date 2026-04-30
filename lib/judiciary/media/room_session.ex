@@ -13,6 +13,7 @@ defmodule Judiciary.Media.RoomSession do
   use GenServer
   require Logger
 
+  alias Phoenix.PubSub
   alias Judiciary.Media.PeerConnection
 
   @heartbeat_interval 30_000  # 30 seconds
@@ -153,37 +154,16 @@ defmodule Judiciary.Media.RoomSession do
 
   @impl true
   def handle_cast({:queue_signal, from_peer_id, to_peer_id, payload}, state) do
+    # Direct signaling via PubSub for MVP reliability
+    PubSub.broadcast(Judiciary.PubSub, "room:#{state.room_id}", {:webrtc_signaling, to_peer_id, from_peer_id, payload})
+    
     case Map.fetch(state.peers, to_peer_id) do
       {:ok, peer_info} ->
-        # Try to send immediately
-        case PeerConnection.handle_signal(peer_info.pid, from_peer_id, payload) do
-          :ok ->
-            updated_peers = update_peer_heartbeat(state.peers, to_peer_id)
-            {:noreply, %{state | peers: updated_peers}}
-
-          {:error, :peer_disconnected} ->
-            # Queue for retry
-            Logger.warning("Peer #{to_peer_id} disconnected, queueing signal")
-
-            message = {from_peer_id, to_peer_id, payload, System.monotonic_time(:millisecond)}
-
-            new_queue =
-              if length(state.message_queue) < @message_queue_limit do
-                [message | state.message_queue]
-              else
-                Logger.warning("Message queue full for room #{state.room_id}, dropping oldest message")
-                state.message_queue |> Enum.take(@message_queue_limit - 1)
-              end
-
-            {:noreply, %{state | message_queue: new_queue}}
-
-          {:error, reason} ->
-            Logger.error("Error sending signal: #{inspect(reason)}")
-            {:noreply, state}
-        end
-
+        spawn(fn -> PeerConnection.handle_signal(peer_info.pid, from_peer_id, payload) end)
+        new_peers = update_peer_heartbeat(state.peers, to_peer_id)
+        {:noreply, %{state | peers: new_peers}}
+      
       :error ->
-        Logger.warning("Peer #{to_peer_id} not found in room #{state.room_id}")
         {:noreply, state}
     end
   end

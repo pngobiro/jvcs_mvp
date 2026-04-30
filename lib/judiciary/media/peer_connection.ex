@@ -118,65 +118,37 @@ defmodule Judiciary.Media.PeerConnection do
 
   defp handle_offer(state, from_peer_id, payload) do
     Logger.info("Peer #{state.peer_id} received offer from #{from_peer_id}")
-
-    case state.state do
-      :new ->
-        new_state = %{
-          state
-          | state: :offer_received,
-            remote_description: payload,
-            last_activity: System.monotonic_time(:millisecond)
-        }
-
-        {:reply, :ok, new_state}
-
-      other_state ->
-        Logger.warning(
-          "Received offer in unexpected state #{other_state} for peer #{state.peer_id}"
-        )
-
-        {:reply, {:error, :invalid_state}, state}
-    end
+    # Be more permissive for MVP
+    new_state = %{
+      state
+      | state: :offer_received,
+        remote_description: payload,
+        last_activity: System.monotonic_time(:millisecond)
+    }
+    {:reply, :ok, new_state}
   end
 
   defp handle_answer(state, from_peer_id, payload) do
     Logger.info("Peer #{state.peer_id} received answer from #{from_peer_id}")
-
-    case state.state do
-      :offer_sent ->
-        new_state = %{
-          state
-          | state: :answer_received,
-            remote_description: payload,
-            last_activity: System.monotonic_time(:millisecond)
-        }
-
-        {:reply, :ok, new_state}
-
-      _ ->
-        Logger.warning("Received answer in unexpected state for peer #{state.peer_id}")
-        {:reply, {:error, :invalid_state}, state}
-    end
+    # Be more permissive for MVP
+    new_state = %{
+      state
+      | state: :answer_received,
+        remote_description: payload,
+        last_activity: System.monotonic_time(:millisecond)
+    }
+    {:reply, :ok, new_state}
   end
 
   defp handle_ice_candidate(state, _from_peer_id, payload) do
     Logger.debug("Peer #{state.peer_id} received ICE candidate")
-
-    if state.state in [:offer_sent, :answer_received, :connected] do
-      new_state = %{
-        state
-        | ice_candidates: [payload | state.ice_candidates],
-          last_activity: System.monotonic_time(:millisecond)
-      }
-
-      {:reply, :ok, new_state}
-    else
-      Logger.warning("Received ICE candidate in state #{state.state}, queuing")
-
-      new_state = %{state | pending_signals: [payload | state.pending_signals]}
-
-      {:reply, {:error, :not_ready_for_candidates}, new_state}
-    end
+    # Always accept candidates during connection setup
+    new_state = %{
+      state
+      | ice_candidates: [payload | state.ice_candidates],
+        last_activity: System.monotonic_time(:millisecond)
+    }
+    {:reply, :ok, new_state}
   end
 
   defp update_activity(state) do

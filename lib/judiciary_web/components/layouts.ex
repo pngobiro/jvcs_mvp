@@ -56,8 +56,8 @@ defmodule JudiciaryWeb.Layouts do
       </div>
     </header>
 
-    <main class="px-4 py-8 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-5xl space-y-4">
+    <main class="px-4 py-8 sm:px-6 lg:px-10">
+      <div class="mx-auto w-full space-y-4">
         {@inner_content}
       </div>
     </main>

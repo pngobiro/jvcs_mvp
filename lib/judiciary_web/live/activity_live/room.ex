@@ -14,20 +14,8 @@ defmodule JudiciaryWeb.ActivityLive.Room do
 
     if connected?(socket) do
       PubSub.subscribe(Judiciary.PubSub, "room:#{activity.id}")
-      # Attempt to start room session (non-blocking, doesn't fail if not available)
-      spawn(fn ->
-        try do
-          case start_room_session(activity.id) do
-            {:ok, _pid} ->
-              Logger.info("Room session started for room: #{activity.id}")
-            {:error, reason} ->
-              Logger.warning("Room session not available (fault tolerance disabled): #{inspect(reason)}")
-          end
-        rescue
-          e ->
-            Logger.warning("Error starting room session: #{inspect(e)}")
-        end
-      end)
+      # Attempt to start room session (non-blocking)
+      Judiciary.Media.RoomSupervisor.start_room(activity.id)
     end
 
     {:ok,
@@ -88,7 +76,14 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   @impl true
   def handle_event("admit_peer", %{"peer_id" => peer_id}, socket) do
     if socket.assigns.role in ["judge", "clerk"] do
-      PubSub.broadcast(Judiciary.PubSub, "room:#{socket.assigns.activity.id}", {:peer_admitted, peer_id})
+      # Find the peer's name from presence
+      peers = Presence.list("room:#{socket.assigns.activity.id}")
+      display_name = case Map.get(peers, peer_id) do
+        %{metas: [%{display_name: name} | _]} -> name
+        _ -> "Participant"
+      end
+
+      PubSub.broadcast(Judiciary.PubSub, "room:#{socket.assigns.activity.id}", {:peer_admitted, peer_id, display_name})
     end
     {:noreply, socket}
   end
@@ -142,7 +137,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   end
 
   @impl true
-  def handle_info({:peer_admitted, peer_id}, socket) do
+  def handle_info({:peer_admitted, peer_id, display_name}, socket) do
     if socket.assigns.current_peer_id == peer_id do
       # Update own presence status
       Presence.update(self(), "room:#{socket.assigns.activity.id}", peer_id, fn meta ->
@@ -150,7 +145,8 @@ defmodule JudiciaryWeb.ActivityLive.Room do
       end)
       {:noreply, assign(socket, :status, "admitted")}
     else
-      {:noreply, socket}
+      # For everyone else, start the WebRTC handshake for this newly admitted peer
+      {:noreply, push_event(socket, "peer_joined", %{peer_id: peer_id, display_name: display_name})}
     end
   end
 

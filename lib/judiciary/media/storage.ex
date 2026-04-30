@@ -9,12 +9,13 @@ defmodule Judiciary.Media.Storage do
   @doc """
   Uploads a file to the configured R2 bucket.
   """
-  def upload_recording(file_path, filename) do
+  def upload_recording(file_path, filename, content_type \\ nil) do
     bucket = get_bucket()
+    opts = if content_type, do: [content_type: content_type], else: []
     
     file_path
     |> S3.Upload.stream_file()
-    |> S3.upload(bucket, "recordings/#{filename}")
+    |> S3.upload(bucket, "recordings/#{filename}", opts)
     |> ExAws.request()
     |> case do
       {:ok, _result} ->
