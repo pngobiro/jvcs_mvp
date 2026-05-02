@@ -41,6 +41,15 @@ defmodule Judiciary.Court do
     |> Repo.preload([:court, :judge])
   end
 
+  def get_activity(id) do
+    Activity
+    |> Repo.get(id)
+    |> case do
+      nil -> nil
+      activity -> Repo.preload(activity, [:court, :judge])
+    end
+  end
+
   def get_activity!(id) do
     Activity
     |> Repo.get!(id)

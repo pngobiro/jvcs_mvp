@@ -27,7 +27,8 @@ The J-VCS is a purpose-built, real-time judicial conferencing platform designed 
 |-----------|-----------|---------|-----------|
 | Language | Elixir | 1.16+ | Fault-tolerant concurrency for thousands of sessions |
 | Web Framework | Phoenix | 1.7+ | Real-time WebSocket engine |
-| Media Engine | Membrane Framework | Latest | Native Elixir media pipeline |
+| WebRTC | ex_webrtc | 0.15+ | Native Elixir WebRTC implementation |
+| Media Engine | Membrane Framework | Latest | Native Elixir media pipeline (optional) |
 | Frontend | Phoenix LiveView | 1.0+ | Server-side rendering with WebSocket UI |
 | Database | PostgreSQL | 15+ | Primary relational store |
 | Search | Meilisearch | 1.6+ | Fast full-text search for case files |
@@ -99,8 +100,9 @@ jvcs_mvp/
 ```elixir
 {:phoenix, "~> 1.7"},
 {:phoenix_live_view, "~> 1.0"},
-{:membrane_webrtc_plugin, "~> 0.26"},  # Core media processing
-{:boombox, "~> 0.2"},                  # Streaming library
+{:ex_webrtc, "~> 0.15.0"},             # Native Elixir WebRTC
+# {:membrane_webrtc_plugin, "~> 0.26"}, # Optional: For recording
+# {:boombox, "~> 0.2"},                 # Optional: For media processing
 {:pow, "~> 1.0"},                      # Authentication
 {:ecto_sql, "~> 3.10"},
 {:postgrex, ">= 0.0.0"},
@@ -111,13 +113,27 @@ jvcs_mvp/
 
 ## Documentation
 
+### WebRTC Implementation
+
+- **[WebRTC Complete Guide](docs/WEBRTC_COMPLETE_GUIDE.md)** - Comprehensive guide for the Elixir-WebRTC implementation:
+  - Architecture and implementation details (SFU/Server-side)
+  - Configuration, monitoring, and troubleshooting
+  - Future enhancements
+
+### General Documentation
+
 Comprehensive documentation is available in the `docs/` directory:
 
+- **[Start Here](docs/START_HERE.md)** - Critical first steps for new developers
 - **[Architecture Guide](docs/ARCHITECTURE.md)** - System design, components, and patterns
+- **[Server-Side WebRTC](docs/SERVER_SIDE_WEBRTC.md)** - Deep dive into the SFU architecture
 - **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Setup, workflow, and best practices
 - **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation with examples
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Kubernetes deployment and operations
 - **[Security Guide](docs/SECURITY.md)** - Security policies and compliance
+- **[Recent Fixes & Updates](docs/SUCCESS.md)** - History of recent feature implementations and fixes
+  - [Duplicate Presence Fix](docs/DUPLICATE_PRESENCE_FIX.md)
+  - [Migration Complete](docs/MIGRATION_COMPLETE.md)
 
 ## Architecture Highlights
 
@@ -129,17 +145,17 @@ The system follows a modular monolith architecture - logically separated into co
 **Orchestration**: Kubernetes (K8s) Cluster  
 **Node Discovery**: libcluster (connecting Erlang nodes across K8s pods)
 
-### Network Topology (Hybrid Approach)
+### Network Topology (SFU Approach)
 
-**P2P Mode (Local)**: When participants are on the same subnet (LAN), media flows peer-to-peer via WebRTC Mesh. Cost: **KES 0.00** in egress bandwidth.
+The system currently uses a **Selective Forwarding Unit (SFU)** architecture. Each participant maintains a single WebRTC connection to the Elixir server, which forwards media tracks to other participants.
 
-**SFU Mode (Remote)**: When participants are on different networks (WAN), media routes through the Membrane SFU in the datacenter.
+**SFU Mode**: All media routes through the Elixir WebRTC engine (WebRTCPeer). This reduces client-side CPU usage and ensures the server has access to all streams for recording and transcription.
 
 ### Layered Architecture
 
 1. **Presentation Layer**: Phoenix LiveView (Server-side rendering, WebSocket UI)
-2. **Signaling Layer**: Phoenix Channels (SDP exchange, Chat, Presence)
-3. **Media Layer**: Membrane Framework (RTP depayloading, mixing, transcoding)
+2. **Signaling Layer**: Phoenix PubSub & Channels (SDP exchange, Chat, Presence)
+3. **Media Layer**: Elixir-WebRTC (`ex_webrtc`) - Handles PeerConnections and RTP forwarding.
 4. **Data Layer**: PostgreSQL (State), Redis (PubSub), MinIO (Object Storage)
 
 ## Key Components

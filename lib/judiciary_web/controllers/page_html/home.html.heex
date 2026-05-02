@@ -1,4 +1,19 @@
-<div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32 bg-zinc-50 min-h-[calc(100vh-80px)]">
+<div class="px-4 py-10 sm:px-6 sm:py-28 lg:px-8 xl:px-28 xl:py-32 bg-zinc-50 min-h-[calc(100vh-80px)] relative">
+  <div class="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-4">
+    <%= if @current_scope && @current_scope.user do %>
+      <.link href={~p"/users/settings"} class="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-judiciary-green transition-colors px-4 py-2 border border-zinc-200 rounded-lg bg-white">
+        {@current_scope.user.email}
+      </.link>
+      <.link href={~p"/users/log_out"} method="delete" class="text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-colors px-4 py-2 border border-red-600 rounded-lg bg-red-600">
+        Log out
+      </.link>
+    <% else %>
+      <.link href={~p"/users/log_in"} class="text-[10px] font-black uppercase tracking-widest text-white hover:bg-judiciary-green-dark transition-colors px-6 py-2 border border-judiciary-green rounded-lg bg-judiciary-green shadow-sm">
+        Log in
+      </.link>
+    <% end %>
+  </div>
+
   <div class="mx-auto max-w-2xl text-center">
     <div class="flex justify-center mb-10">
       <div class="p-4 bg-white rounded-3xl shadow-2xl border-b-4 border-judiciary-gold">

@@ -13,6 +13,27 @@ defmodule Judiciary.Media.RoomAndPeerSupervisor do
     Supervisor.start_link(__MODULE__, opts)
   end
 
+  def start_peer(room_id, %{peer_id: peer_id, metadata: metadata}) do
+    # Get the PeerSupervisor for this room via the PeerSupervisor registry
+    case Registry.lookup(Judiciary.Media.PeerSupervisor, room_id) do
+      [{pid, _}] ->
+        child_spec = {
+          Judiciary.Media.WebRTCPeer,
+          [room_id: room_id, peer_id: peer_id, metadata: metadata]
+        }
+
+        case DynamicSupervisor.start_child(pid, child_spec) do
+          {:ok, pid} -> {:ok, pid}
+          {:error, {:already_started, pid}} -> {:ok, pid}
+          {:error, reason} -> {:error, reason}
+        end
+
+      [] ->
+        Logger.warning("PeerSupervisor not found for room #{room_id}")
+        {:error, :peer_supervisor_not_found}
+    end
+  end
+
   @impl true
   def init(opts) do
     room_id = Keyword.fetch!(opts, :room_id)

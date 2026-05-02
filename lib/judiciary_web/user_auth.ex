@@ -37,6 +37,7 @@ defmodule JudiciaryWeb.UserAuth do
 
     conn
     |> create_or_extend_session(user, params)
+    |> delete_session(:user_return_to)
     |> redirect(to: user_return_to || signed_in_path(conn))
   end
 
@@ -118,34 +119,26 @@ defmodule JudiciaryWeb.UserAuth do
     |> maybe_write_remember_me_cookie(token, params, remember_me)
   end
 
-  # Do not renew session if the user is already logged in
-  # to prevent CSRF errors or data being lost in tabs that are still open
-  defp renew_session(conn, user) when conn.assigns.current_scope.user.id == user.id do
-    conn
-  end
-
-  # This function renews the session ID and erases the whole
-  # session to avoid fixation attacks. If there is any data
-  # in the session you may want to preserve after log in/log out,
-  # you must explicitly fetch the session data before clearing
-  # and then immediately set it after clearing, for example:
-  #
-  #     defp renew_session(conn, _user) do
-  #       delete_csrf_token()
-  #       preferred_locale = get_session(conn, :preferred_locale)
-  #
-  #       conn
-  #       |> configure_session(renew: true)
-  #       |> clear_session()
-  #       |> put_session(:preferred_locale, preferred_locale)
-  #     end
-  #
-  defp renew_session(conn, _user) do
+  defp renew_session(conn) do
     delete_csrf_token()
 
     conn
     |> configure_session(renew: true)
     |> clear_session()
+  end
+
+  # Do not renew session if the user is already logged in
+  # to prevent CSRF errors or data being lost in tabs that are still open
+  defp renew_session(conn, nil), do: renew_session(conn)
+
+  defp renew_session(conn, user) do
+    current_user = get_in(conn.assigns, [:current_scope, Access.key(:user)])
+
+    if current_user && current_user.id == user.id do
+      conn
+    else
+      renew_session(conn)
+    end
   end
 
   defp maybe_write_remember_me_cookie(conn, token, %{"remember_me" => "true"}, _),
@@ -211,6 +204,21 @@ defmodule JudiciaryWeb.UserAuth do
         live "/profile", ProfileLive, :index
       end
   """
+  def on_mount(:require_court_staff, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    if court_staff?(socket.assigns.current_scope) do
+      {:cont, socket}
+    else
+      socket =
+        socket
+        |> Phoenix.LiveView.put_flash(:error, "You do not have permission to access this page.")
+        |> Phoenix.LiveView.redirect(to: ~p"/activities")
+
+      {:halt, socket}
+    end
+  end
+
   def on_mount(:mount_current_scope, _params, session, socket) do
     {:cont, mount_current_scope(socket, session)}
   end
@@ -224,7 +232,7 @@ defmodule JudiciaryWeb.UserAuth do
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+        |> Phoenix.LiveView.redirect(to: ~p"/users/log_in")
 
       {:halt, socket}
     end
@@ -239,9 +247,19 @@ defmodule JudiciaryWeb.UserAuth do
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must re-authenticate to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+        |> Phoenix.LiveView.redirect(to: ~p"/users/log_in")
 
       {:halt, socket}
+    end
+  end
+
+  def on_mount(:redirect_if_user_is_authenticated, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    if socket.assigns.current_scope && socket.assigns.current_scope.user do
+      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/activities")}
+    else
+      {:cont, socket}
     end
   end
 
@@ -259,10 +277,10 @@ defmodule JudiciaryWeb.UserAuth do
   @doc "Returns the path to redirect to after log in."
   # the user was already logged in, redirect to settings
   def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
-    ~p"/users/settings"
+    ~p"/activities"
   end
 
-  def signed_in_path(_), do: ~p"/"
+  def signed_in_path(_), do: ~p"/activities"
 
   @doc """
   Plug for routes that require the user to be authenticated.
@@ -274,7 +292,7 @@ defmodule JudiciaryWeb.UserAuth do
       conn
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/users/log-in")
+      |> redirect(to: ~p"/users/log_in")
       |> halt()
     end
   end
@@ -284,4 +302,25 @@ defmodule JudiciaryWeb.UserAuth do
   end
 
   defp maybe_store_return_to(conn), do: conn
+
+  @doc """
+  Checks if the current scope belongs to a court staff member.
+  """
+  def court_staff?(nil), do: false
+  def court_staff?(%Scope{user: %Accounts.User{role: role}}) when role in ["judge", "clerk"], do: true
+  def court_staff?(_), do: false
+
+  @doc """
+  Plug for routes that require court staff.
+  """
+  def require_court_staff(conn, _opts) do
+    if court_staff?(conn.assigns.current_scope) do
+      conn
+    else
+      conn
+      |> put_flash(:error, "You do not have permission to perform this action.")
+      |> redirect(to: ~p"/activities")
+      |> halt()
+    end
+  end
 end

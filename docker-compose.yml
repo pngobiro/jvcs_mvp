@@ -13,15 +13,14 @@ services:
 
   web:
     build: .
+    network_mode: host
     env_file: .env
     volumes:
       - .:/app
       - /app/_build
       - /app/deps
-    ports:
-      - "4000:4000"
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ecto://postgres:postgres@localhost:5436/judiciary_dev
       PHX_HOST: ${PHX_HOST}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
@@ -30,7 +29,18 @@ services:
       R2_PUBLIC_URL: ${R2_PUBLIC_URL}
     depends_on:
       - db
-    command: sh -c "mix deps.get && mix ecto.setup && mix phx.server"
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        until pg_isready -h localhost -p 5436 -U postgres; do
+          echo 'DB not ready, retrying in 2s...'
+          sleep 2
+        done &&
+        echo 'Database ready!' &&
+        mix deps.get &&
+        mix ecto.setup &&
+        mix phx.server
+      "
 
 volumes:
   postgres_data:

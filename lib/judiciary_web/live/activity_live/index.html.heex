@@ -1,6 +1,22 @@
-<div class="py-8 px-4 sm:px-6 lg:px-12 w-full mx-auto">
+<div class="py-8 px-4 sm:px-6 lg:px-12 w-full mx-auto relative">
+  <!-- Auth Controls -->
+  <div class="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-4 z-10">
+    <%= if @current_scope && @current_scope.user do %>
+      <.link href={~p"/users/settings"} class="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-judiciary-green transition-colors px-4 py-2 border border-zinc-200 rounded-lg bg-white shadow-sm">
+        {@current_scope.user.email}
+      </.link>
+      <.link href={~p"/users/log_out"} method="delete" class="text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-colors px-4 py-2 border border-red-600 rounded-lg bg-red-600 shadow-sm">
+        Log out
+      </.link>
+    <% else %>
+      <.link href={~p"/users/log_in"} class="text-[10px] font-black uppercase tracking-widest text-white hover:bg-judiciary-green-dark transition-colors px-6 py-2 border border-judiciary-green rounded-lg bg-judiciary-green shadow-sm">
+        Log in
+      </.link>
+    <% end %>
+  </div>
+
   <!-- Page Header -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 mt-12 sm:mt-0">
     <div class="flex items-center gap-6">
       <div>
         <h1 class="text-3xl font-black tracking-tight text-zinc-900 flex items-center gap-3">
@@ -17,13 +33,19 @@
         <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">LB</div>
         <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">SC</div>
       </div>
-      <span class="text-xs font-bold text-zinc-400 uppercase tracking-widest">Live Now</span>
       
-      <.link patch={~p"/activities/new"}>
-        <.button class="bg-judiciary-green hover:bg-judiciary-dark text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-judiciary-gold transition-all active:scale-95 font-bold">
-          + Schedule Hearing
-        </.button>
+      <.link navigate={~p"/activities/main/room"} class="bg-zinc-900 hover:bg-black text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-judiciary-gold transition-all active:scale-95 font-bold flex items-center gap-2">
+        <.icon name="hero-video-camera-solid" class="w-5 h-5 text-judiciary-gold" />
+        Join Main Courtroom
       </.link>
+      
+      <div :if={JudiciaryWeb.UserAuth.court_staff?(@current_scope)}>
+        <.link patch={~p"/activities/new"}>
+          <.button class="bg-judiciary-green hover:bg-judiciary-dark text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-judiciary-gold transition-all active:scale-95 font-bold">
+            + Schedule Hearing
+          </.button>
+        </.link>
+      </div>
     </div>
   </div>
 
@@ -105,15 +127,17 @@
       </:col>
       <:action :let={{_id, activity}}>
         <div class="flex items-center gap-4">
-          <%= if activity.transcript_url do %>
-            <a href={activity.transcript_url} target="_blank" class="text-zinc-400 hover:text-blue-500 transition-colors" title="Download Transcript">
-              <.icon name="hero-document-text" class="w-5 h-5" />
-            </a>
-          <% end %>
-          <%= if activity.recording_url do %>
-            <a href={activity.recording_url} target="_blank" class="text-zinc-400 hover:text-judiciary-gold transition-colors" title="Download Recording">
-              <.icon name="hero-arrow-down-tray" class="w-5 h-5" />
-            </a>
+          <%= if JudiciaryWeb.UserAuth.court_staff?(@current_scope) do %>
+            <%= if activity.transcript_url do %>
+              <a href={activity.transcript_url} target="_blank" class="text-zinc-400 hover:text-blue-500 transition-colors" title="Download Transcript">
+                <.icon name="hero-document-text" class="w-5 h-5" />
+              </a>
+            <% end %>
+            <%= if activity.recording_url do %>
+              <a href={activity.recording_url} target="_blank" class="text-zinc-400 hover:text-judiciary-gold transition-colors" title="Download Recording">
+                <.icon name="hero-arrow-down-tray" class="w-5 h-5" />
+              </a>
+            <% end %>
           <% end %>
           <.link navigate={~p"/activities/#{activity}"} class="text-zinc-400 hover:text-judiciary-green transition-colors" title="View Dossier">
             <.icon name="hero-document-text" class="w-5 h-5" />
@@ -124,18 +148,22 @@
         </div>
       </:action>
       <:action :let={{_id, activity}}>
-        <.link patch={~p"/activities/#{activity}/edit"} class="text-zinc-400 hover:text-blue-600 transition-colors">
-          <.icon name="hero-pencil-square" class="w-5 h-5" />
-        </.link>
+        <div :if={JudiciaryWeb.UserAuth.court_staff?(@current_scope)}>
+          <.link patch={~p"/activities/#{activity}/edit"} class="text-zinc-400 hover:text-blue-600 transition-colors">
+            <.icon name="hero-pencil-square" class="w-5 h-5" />
+          </.link>
+        </div>
       </:action>
       <:action :let={{id, activity}}>
-        <.link
-          phx-click={JS.push("delete", value: %{id: activity.id}) |> hide("##{id}")}
-          data-confirm="Are you sure you want to strike out this hearing?"
-          class="text-zinc-400 hover:text-red-600 transition-colors"
-        >
-          <.icon name="hero-trash" class="w-5 h-5" />
-        </.link>
+        <div :if={JudiciaryWeb.UserAuth.court_staff?(@current_scope)}>
+          <.link
+            phx-click={JS.push("delete", value: %{id: activity.id}) |> hide("##{id}")}
+            data-confirm="Are you sure you want to strike out this hearing?"
+            class="text-zinc-400 hover:text-red-600 transition-colors"
+          >
+            <.icon name="hero-trash" class="w-5 h-5" />
+          </.link>
+        </div>
       </:action>
     </.table>
   </div>

@@ -1,7 +1,7 @@
 defmodule Judiciary.Media.Supervisor do
   @moduledoc """
   Master supervisor for the media pipeline.
-  
+
   Starts:
   - Registries for room sessions and peer supervisors
   - RoomSupervisor for managing room sessions
@@ -23,6 +23,8 @@ defmodule Judiciary.Media.Supervisor do
       {Registry, keys: :unique, name: Judiciary.Media.RoomRegistry},
       # Registry for mapping room_id to PeerSupervisor PID
       {Registry, keys: :unique, name: Judiciary.Media.PeerSupervisor},
+      # Registry for mapping {room_id, peer_id} to WebRTCPeer PID
+      {Registry, keys: :unique, name: Judiciary.Media.PeerRegistry},
       # Main room supervisor
       Judiciary.Media.RoomSupervisor
     ]

@@ -89,11 +89,13 @@
           </.button>
         </.link>
         
-        <.link patch={~p"/activities/#{@activity}/show/edit"} phx-click={JS.push_focus()}>
-          <.button class="w-full sm:w-auto bg-white border-2 border-zinc-300 text-zinc-700 hover:bg-zinc-100 py-5 px-10 font-bold rounded-2xl">
-            Edit
-          </.button>
-        </.link>
+        <div :if={JudiciaryWeb.UserAuth.court_staff?(@current_scope)}>
+          <.link patch={~p"/activities/#{@activity}/show/edit"} phx-click={JS.push_focus()}>
+            <.button class="w-full sm:w-auto bg-white border-2 border-zinc-300 text-zinc-700 hover:bg-zinc-100 py-5 px-10 font-bold rounded-2xl">
+              Edit
+            </.button>
+          </.link>
+        </div>
       </div>
     </div>
   </div>

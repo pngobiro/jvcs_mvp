@@ -12,6 +12,22 @@ defmodule JudiciaryWeb.UserSessionController do
     create(conn, params, "Welcome back!")
   end
 
+  def magic_link_login(conn, %{"token" => token}) do
+    case Accounts.login_user_by_magic_link(token) do
+      {:ok, {user, tokens_to_disconnect}} ->
+        UserAuth.disconnect_sessions(tokens_to_disconnect)
+
+        conn
+        |> put_flash(:info, "Logged in successfully via magic link!")
+        |> UserAuth.log_in_user(user, %{})
+
+      _ ->
+        conn
+        |> put_flash(:error, "The link is invalid or it has expired.")
+        |> redirect(to: ~p"/users/log_in")
+    end
+  end
+
   # magic link login
   defp create(conn, %{"user" => %{"token" => token} = user_params}, info) do
     case Accounts.login_user_by_magic_link(token) do
@@ -25,7 +41,7 @@ defmodule JudiciaryWeb.UserSessionController do
       _ ->
         conn
         |> put_flash(:error, "The link is invalid or it has expired.")
-        |> redirect(to: ~p"/users/log-in")
+        |> redirect(to: ~p"/users/log_in")
     end
   end
 
@@ -42,7 +58,7 @@ defmodule JudiciaryWeb.UserSessionController do
       conn
       |> put_flash(:error, "Invalid email or password")
       |> put_flash(:email, String.slice(email, 0, 160))
-      |> redirect(to: ~p"/users/log-in")
+      |> redirect(to: ~p"/users/log_in")
     end
   end
 

@@ -24,10 +24,10 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/judiciary"
 import topbar from "../vendor/topbar"
-import WebRTC from "./hooks/WebRTC"
+import WebRTCSimple from "./hooks/WebRTCSimple"
 
 let Hooks = {
-  WebRTC,
+  WebRTC: WebRTCSimple,
   ChatScroll: {
     updated() {
       this.el.scrollTop = this.el.scrollHeight

@@ -44,7 +44,7 @@ defmodule JudiciaryWeb.Layouts do
               {@current_scope.user.email}
             </li>
             <li>
-              <.link href={~p"/users/log-out"} method="delete" class="text-xs md:text-[0.8125rem] leading-6 font-semibold hover:text-zinc-300 whitespace-nowrap">
+              <.link href={~p"/users/log_out"} method="delete" class="text-xs md:text-[0.8125rem] leading-6 font-semibold hover:text-zinc-300 whitespace-nowrap">
                 Log out
               </.link>
             </li>

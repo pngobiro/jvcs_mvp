@@ -19,9 +19,17 @@ defmodule JudiciaryWeb.ActivityLive.Index do
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    socket
-    |> assign(:page_title, "Edit Activity")
-    |> assign(:activity, Court.get_activity!(id))
+    case Court.get_activity(id) do
+      nil ->
+        socket
+        |> put_flash(:error, "Activity not found")
+        |> push_navigate(to: ~p"/activities")
+
+      activity ->
+        socket
+        |> assign(:page_title, "Edit Activity")
+        |> assign(:activity, activity)
+    end
   end
 
   defp apply_action(socket, :new, _params) do
@@ -48,10 +56,17 @@ defmodule JudiciaryWeb.ActivityLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    activity = Court.get_activity!(id)
-    {:ok, _} = Court.delete_activity(activity)
+    case Court.get_activity(id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Activity not found")
+         |> push_navigate(to: ~p"/activities")}
 
-    {:noreply, stream_delete(socket, :activities, activity)}
+      activity ->
+        {:ok, _} = Court.delete_activity(activity)
+        {:noreply, stream_delete(socket, :activities, activity)}
+    end
   end
 
   defp status_classes("in_progress"), do: "bg-red-100 text-red-700 border-red-200 shadow-sm"

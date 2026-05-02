@@ -63,6 +63,18 @@ judges = [
     name: "Hon. Justice Cloud",
     role: "judge",
     link: "#{base_url}/users/chambers/cloud"
+  },
+  %{
+    email: "c.clerk@judiciary.go.ke",
+    name: "Standard Clerk",
+    role: "clerk",
+    link: "#{base_url}/users/dashboard/clerk"
+  },
+  %{
+    email: "a.lawyer@example.com",
+    name: "Standard Advocate",
+    role: "advocate",
+    link: "#{base_url}/users/dashboard/advocate"
   }
 ]
 
@@ -70,6 +82,11 @@ judge_records = Enum.map(judges, fn attrs ->
   case Judiciary.Accounts.get_user_by_email(attrs.email) do
     nil ->
       {:ok, user} = Judiciary.Accounts.register_user(attrs)
+      # Set a default password
+      {:ok, user} = 
+        user
+        |> Judiciary.Accounts.User.password_changeset(%{password: "password1234"})
+        |> Judiciary.Repo.update()
       user
     user ->
       user

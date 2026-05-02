@@ -10,10 +10,19 @@ defmodule JudiciaryWeb.ActivityLive.Show do
 
   @impl true
   def handle_params(%{"id" => id}, _, socket) do
-    {:noreply,
-     socket
-     |> assign(:page_title, page_title(socket.assigns.live_action))
-     |> assign(:activity, Court.get_activity!(id))}
+    case Court.get_activity(id) do
+      nil ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Activity not found")
+         |> redirect(to: ~p"/activities")}
+
+      activity ->
+        {:noreply,
+         socket
+         |> assign(:page_title, page_title(socket.assigns.live_action))
+         |> assign(:activity, activity)}
+    end
   end
 
   defp page_title(:show), do: "Show Activity"

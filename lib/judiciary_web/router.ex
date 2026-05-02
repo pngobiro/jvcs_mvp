@@ -17,45 +17,47 @@ defmodule JudiciaryWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/api", JudiciaryWeb do
-    pipe_through :api
-    post "/media/upload", MediaController, :upload
-  end
-
   scope "/", JudiciaryWeb do
     pipe_through :browser
 
     get "/", PageController, :home
 
-    # Zoom-style access: Publicly accessible activities and rooms
+    # Causelist is Public
     live_session :public_activities,
-      on_mount: [{JudiciaryWeb.UserAuth, :mount_current_scope}],
-      layout: {JudiciaryWeb.Layouts, :app} do
+      on_mount: [{JudiciaryWeb.UserAuth, :mount_current_scope}] do
       live "/activities", ActivityLive.Index, :index
-      live "/activities/new", ActivityLive.Index, :new
-      live "/activities/:id/edit", ActivityLive.Index, :edit
       live "/activities/:id", ActivityLive.Show, :show
-      live "/activities/:id/show/edit", ActivityLive.Show, :edit
     end
-
-    live "/activities/:id/room", ActivityLive.Room, :room
   end
 
-  ## Authentication routes (Optional/Admin)
+  ## Authentication routes
 
   scope "/", JudiciaryWeb do
     pipe_through [:browser]
 
     live_session :current_scope,
-      on_mount: [{JudiciaryWeb.UserAuth, :mount_current_scope}] do
+      on_mount: [{JudiciaryWeb.UserAuth, :mount_current_scope}, {JudiciaryWeb.UserAuth, :redirect_if_user_is_authenticated}] do
       live "/users/register", UserLive.Registration, :new
-      live "/users/log-in", UserLive.Login, :new
-      live "/users/log-in/:token", UserLive.Login, :new
+      live "/users/log_in", UserLive.Login, :new
     end
 
-    post "/users/log-in", UserSessionController, :create
-    post "/users/update-password", UserSessionController, :update_password
-    delete "/users/log-out", UserSessionController, :delete
+    post "/users/log_in", UserSessionController, :create
+    get "/users/log_in/:token", UserSessionController, :magic_link_login
+    post "/users/update_password", UserSessionController, :update_password
+    delete "/users/log_out", UserSessionController, :delete
+  end
+
+  scope "/", JudiciaryWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_court_staff]
+
+    live_session :require_court_staff,
+      on_mount: [{JudiciaryWeb.UserAuth, :require_court_staff}] do
+
+      # Court Management are Secured
+      live "/activities/new", ActivityLive.Index, :new
+      live "/activities/:id/edit", ActivityLive.Index, :edit
+      live "/activities/:id/show/edit", ActivityLive.Show, :edit
+    end
   end
 
   scope "/", JudiciaryWeb do
@@ -64,7 +66,8 @@ defmodule JudiciaryWeb.Router do
     live_session :require_authenticated_user,
       on_mount: [{JudiciaryWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
-      live "/users/settings/confirm-email/:token", UserLive.Settings, :edit
+      live "/users/settings/confirm_email/:token", UserLive.Settings, :confirm_email
+      live "/activities/:id/room", ActivityLive.Room, :room
     end
   end
 

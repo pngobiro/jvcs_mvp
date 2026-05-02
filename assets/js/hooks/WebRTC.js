@@ -2,6 +2,8 @@ const WebRTC = {
   mounted() {
     this.peerId = Math.random().toString(36).substring(2, 15);
     this.peerConnections = {};
+    this.peerNames = {}; // Track display names
+    this.pendingCandidates = {};
     this.localStream = null;
     this.connectionRetries = {};
     this.maxRetries = 3;
@@ -24,8 +26,10 @@ const WebRTC = {
       .then(stream => {
         console.log("[WebRTC] Local media stream captured");
         this.localStream = stream;
-        const localVideo = document.getElementById("local-video");
-        if (localVideo) localVideo.srcObject = stream;
+        const localVideos = document.querySelectorAll("#local-video");
+        localVideos.forEach(video => {
+          video.srcObject = stream;
+        });
 
         this.monitorLocalStream(stream);
         this.pushEvent("join_call", { peer_id: this.peerId });
@@ -48,33 +52,84 @@ const WebRTC = {
       }
     });
 
+    // Handle Pre-existing Peers (Triggered when WE are admitted)
+    this.handleEvent("peer_present", ({ peer_id, display_name }) => {
+      if (peer_id === this.peerId) return;
+      console.log(`[WebRTC] Peer already in room: ${display_name} (${peer_id})`);
+      
+      if (!this.peerConnections[peer_id]) {
+        console.log(`[WebRTC] Creating connection to ${display_name} (Initiator: false)`);
+        this.createPeerConnection(peer_id, display_name, configuration, false);
+      }
+    });
+
+    // Handle Peer Left (Cleanup)
+    this.handleEvent("peer_left", ({ peer_id }) => {
+      console.log(`[WebRTC] Peer left: ${peer_id}`);
+      this.cleanupPeer(peer_id);
+    });
+
     // Handle incoming signaling
     this.handleEvent("webrtc_signaling", async ({ from, payload }) => {
       if (from === this.peerId) return;
 
-      if (!this.peerConnections[from]) {
-        console.log(`[WebRTC] Received signal from unknown peer ${from}, creating connection (Initiator: false)`);
-        this.createPeerConnection(from, "Participant", configuration, false);
+      let pc = this.peerConnections[from];
+      const signalType = payload.type || (payload.candidate ? "ice" : "unknown");
+      
+      // Re-create connection if it was closed or doesn't exist
+      if (!pc || pc.signalingState === "closed") {
+        console.log(`[WebRTC] Received ${signalType} from unknown/closed peer ${from}, creating connection`);
+        const name = this.peerNames[from] || "Participant";
+        pc = this.createPeerConnection(from, name, configuration, false);
       }
-
-      const pc = this.peerConnections[from];
 
       try {
         if (payload.type === "offer") {
-          console.log(`[WebRTC] Received offer from ${from}`);
+          console.log(`[WebRTC] Processing offer from ${from}, current state: ${pc.signalingState}`);
+          
+          // Handle glare condition (both sides sent offers)
+          if (pc.signalingState === "have-local-offer") {
+            console.warn(`[WebRTC] Glare detected with ${from}, resolving...`);
+            // Use peer ID comparison to determine who backs off
+            if (this.peerId > from) {
+              console.log(`[WebRTC] Backing off from glare with ${from}`);
+              await pc.setLocalDescription({type: "rollback"});
+            } else {
+              console.log(`[WebRTC] Ignoring offer from ${from} due to glare resolution`);
+              return;
+            }
+          }
+          
           await pc.setRemoteDescription(new RTCSessionDescription(payload));
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
+          console.log(`[WebRTC] Sending answer to ${from}`);
           this.pushEvent("webrtc_signaling", { to: from, payload: pc.localDescription });
+          
         } else if (payload.type === "answer") {
-          console.log(`[WebRTC] Received answer from ${from}`);
-          await pc.setRemoteDescription(new RTCSessionDescription(payload));
+          console.log(`[WebRTC] Processing answer from ${from}, current state: ${pc.signalingState}`);
+          
+          if (pc.signalingState === "have-local-offer") {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload));
+            console.log(`[WebRTC] Answer applied successfully for ${from}`);
+          } else {
+            console.warn(`[WebRTC] Received answer in unexpected state: ${pc.signalingState}`);
+          }
+          
         } else if (payload.candidate) {
-          console.log(`[WebRTC] Received ICE candidate from ${from}`);
-          await pc.addIceCandidate(new RTCIceCandidate(payload));
+          // Queue ICE candidates if remote description not set yet
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(new RTCIceCandidate(payload));
+            console.log(`[WebRTC] Added ICE candidate from ${from}`);
+          } else {
+            console.log(`[WebRTC] Queuing ICE candidate from ${from} (no remote description yet)`);
+            if (!this.pendingCandidates) this.pendingCandidates = {};
+            if (!this.pendingCandidates[from]) this.pendingCandidates[from] = [];
+            this.pendingCandidates[from].push(payload);
+          }
         }
       } catch (err) {
-        console.error(`[WebRTC] Signaling error with peer ${from}:`, err);
+        console.error(`[WebRTC] Signaling error with peer ${from} (${signalType}):`, err);
         this.handleSignalingError(from, err);
       }
     });
@@ -84,8 +139,69 @@ const WebRTC = {
     this.setupRecording();
   },
 
+  updated() {
+    // Re-attach local stream if DOM changed (e.g. lobby -> room)
+    if (this.localStream) {
+      const localVideos = document.querySelectorAll("#local-video");
+      localVideos.forEach(video => {
+        if (video.srcObject !== this.localStream) {
+          console.log("[WebRTC] DOM Updated: Re-attaching local stream to video element");
+          video.srcObject = this.localStream;
+        }
+      });
+    }
+
+    // Ensure remote videos are present and playing if they exist in our connections
+    const grid = document.getElementById("video-grid");
+    if (grid) {
+      Object.keys(this.peerConnections).forEach(peerId => {
+        const pc = this.peerConnections[peerId];
+        if (pc.signalingState !== "closed") {
+          const receivers = pc.getReceivers();
+          const tracks = receivers.map(r => r.track).filter(t => t !== null && t.readyState === "live");
+          
+          if (tracks.length > 0) {
+            let videoEl = document.getElementById(`video-${peerId}`);
+            // If the element was destroyed by LiveView but we still have active tracks
+            if (!videoEl) {
+              console.log(`[WebRTC] DOM Updated: Restoring remote stream element for ${peerId}`);
+              const stream = new MediaStream(tracks);
+              const name = this.peerNames[peerId] || "Participant";
+              this.addRemoteVideo(peerId, name, stream);
+            } else if (!videoEl.srcObject) {
+              // Element exists but lost its srcObject
+              console.log(`[WebRTC] DOM Updated: Re-attaching remote stream to existing element for ${peerId}`);
+              videoEl.srcObject = new MediaStream(tracks);
+            }
+          }
+        }
+      });
+    }
+  },
+
+  cleanupPeer(peerId) {
+    if (this.peerConnections[peerId]) {
+      this.peerConnections[peerId].close();
+      delete this.peerConnections[peerId];
+    }
+    delete this.peerNames[peerId];
+    const videoEl = document.getElementById(`wrapper-${peerId}`);
+    if (videoEl) videoEl.remove();
+    console.log(`[WebRTC] Cleaned up peer resources for: ${peerId}`);
+  },
+
   createPeerConnection(peerId, displayName, configuration, isInitiator) {
-    console.log(`[WebRTC] Initializing RTCPeerConnection for ${displayName}`);
+    console.log(`[WebRTC] Initializing RTCPeerConnection for ${displayName} (initiator: ${isInitiator})`);
+    
+    // Store name for recovery
+    this.peerNames[peerId] = displayName;
+
+    // Close existing if any
+    if (this.peerConnections[peerId]) {
+      console.log(`[WebRTC] Closing existing connection for ${displayName}`);
+      this.peerConnections[peerId].close();
+    }
+
     const pc = new RTCPeerConnection(configuration);
     this.peerConnections[peerId] = pc;
 
@@ -98,13 +214,54 @@ const WebRTC = {
     pc.onconnectionstatechange = () => {
       console.log(`[WebRTC] Connection state with ${displayName}: ${pc.connectionState}`);
       if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-        this.handleConnectionFailure(peerId, pc, displayName, configuration, isInitiator);
+        // Wait a moment for potential auto-recovery before removal
+        setTimeout(() => {
+          if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+             console.log(`[WebRTC] Peer ${displayName} still disconnected, checking for removal...`);
+          }
+        }, 5000);
+      } else if (pc.connectionState === "connected") {
+        console.log(`[WebRTC] Successfully connected to ${displayName}`);
+        // Process any pending ICE candidates
+        if (this.pendingCandidates && this.pendingCandidates[peerId]) {
+          console.log(`[WebRTC] Processing ${this.pendingCandidates[peerId].length} pending ICE candidates for ${displayName}`);
+          this.pendingCandidates[peerId].forEach(async (candidate) => {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+              console.error(`[WebRTC] Error adding pending candidate:`, err);
+            }
+          });
+          delete this.pendingCandidates[peerId];
+        }
       }
     };
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
+      if (event.candidate && pc.signalingState !== "closed") {
         this.pushEvent("webrtc_signaling", { to: peerId, payload: event.candidate });
+      } else if (!event.candidate) {
+        console.log(`[WebRTC] ICE gathering complete for ${displayName}`);
+      }
+    };
+
+    pc.onicegatheringstatechange = () => {
+      console.log(`[WebRTC] ICE gathering state for ${displayName}: ${pc.iceGatheringState}`);
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[WebRTC] ICE connection state for ${displayName}: ${pc.iceConnectionState}`);
+    };
+
+    pc.onnegotiationneeded = async () => {
+      if (isInitiator && pc.signalingState !== "closed") {
+        try {
+          console.log(`[WebRTC] Negotiation needed for ${displayName}, state: ${pc.signalingState}`);
+          await pc.setLocalDescription(await pc.createOffer());
+          this.pushEvent("webrtc_signaling", { to: peerId, payload: pc.localDescription });
+        } catch (err) {
+          console.error(`[WebRTC] Negotiation failed for ${displayName}:`, err);
+        }
       }
     };
 
@@ -117,7 +274,7 @@ const WebRTC = {
       pc.createOffer()
         .then(offer => pc.setLocalDescription(offer))
         .then(() => {
-          console.log(`[WebRTC] Sent offer to ${displayName}`);
+          console.log(`[WebRTC] Sent initial offer to ${displayName}`);
           this.pushEvent("webrtc_signaling", { to: peerId, payload: pc.localDescription });
         })
         .catch(err => console.error("[WebRTC] Offer creation failed:", err));
