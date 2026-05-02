@@ -745,7 +745,32 @@ defmodule Judiciary.Media.WebRTCPeer do
       _, _ -> :ok
     end
     
-    {:ok, new_pc} = PeerConnection.start_link(ice_servers: @ice_servers)
+    {:ok, new_pc} = PeerConnection.start_link(
+      ice_servers: @ice_servers,
+      ice_aggressive_nomination: true,
+      ice_port_range: 50000..50050,
+      video_codecs: [
+        %ExWebRTC.RTPCodecParameters{
+          payload_type: 96,
+          mime_type: "video/VP8",
+          clock_rate: 90000
+        }
+      ],
+      audio_codecs: [
+        %ExWebRTC.RTPCodecParameters{
+          payload_type: 111,
+          mime_type: "audio/opus",
+          clock_rate: 48000,
+          channels: 2
+        }
+      ],
+      ice_ip_filter: fn ip ->
+        ip_str = :inet.ntoa(ip) |> to_string()
+        not (String.starts_with?(ip_str, "127.") or 
+             String.contains?(ip_str, ":") or 
+             String.starts_with?(ip_str, "172."))
+      end
+    )
     :ok = PeerConnection.controlling_process(new_pc, self())
     
     # Create NEW proxy tracks for all tracks we were previously forwarding
