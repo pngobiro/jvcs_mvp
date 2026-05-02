@@ -46,6 +46,7 @@ defmodule JudiciaryWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    length: 500_000_000, # 500MB
     json_decoder: Phoenix.json_library()
 
   plug Plug.MethodOverride

@@ -17,6 +17,12 @@ defmodule JudiciaryWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/api", JudiciaryWeb do
+    pipe_through :api
+
+    post "/media/upload", MediaController, :upload
+  end
+
   scope "/", JudiciaryWeb do
     pipe_through :browser
 

@@ -95,56 +95,60 @@ end)
 
 IO.puts "Seeding court activities..."
 
-# Clean up existing activities to avoid duplication or constraint issues if re-run
-Repo.delete_all(Activity)
+# Only seed activities if the table is empty to avoid changing IDs on every restart
+if Repo.all(Activity) == [] do
+  activities = [
+    %{
+      case_number: "PET-E001-2026",
+      title: "Constitutional Petition: Rights of Digital Sovereignty",
+      start_time: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second),
+      status: "pending",
+      judge_name: "Hon. Justice Tech",
+      court_id: milimani_1.id,
+      judge_id: Enum.find(judge_records, &(&1.email == "j.tech@judiciary.go.ke")).id,
+      link: milimani_1.link
+    },
+    %{
+      case_number: "CRIM-B452-2026",
+      title: "The State vs. Cyber Attacker",
+      start_time: DateTime.utc_now() |> DateTime.add(7200, :second) |> DateTime.truncate(:second),
+      status: "in_progress",
+      judge_name: "Hon. Lady Justice Binary",
+      court_id: milimani_1.id,
+      judge_id: Enum.find(judge_records, &(&1.email == "l.binary@judiciary.go.ke")).id,
+      link: milimani_1.link
+    },
+    %{
+      case_number: "COMM-C123-2025",
+      title: "Global Tech Corp vs. Local Startup Ltd",
+      start_time: DateTime.utc_now() |> DateTime.add(86400, :second) |> DateTime.truncate(:second),
+      status: "pending",
+      judge_name: "Hon. Justice Silicon",
+      court_id: milimani_2.id,
+      judge_id: Enum.find(judge_records, &(&1.email == "j.silicon@judiciary.go.ke")).id,
+      link: milimani_2.link
+    },
+    %{
+      case_number: "ELC-D789-2026",
+      title: "Employment Dispute: Remote Work Policy",
+      start_time: DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.truncate(:second),
+      status: "completed",
+      judge_name: "Hon. Justice Cloud",
+      court_id: milimani_2.id,
+      judge_id: Enum.find(judge_records, &(&1.email == "j.cloud@judiciary.go.ke")).id,
+      link: milimani_2.link
+    }
+  ]
 
-activities = [
-  %{
-    case_number: "PET-E001-2026",
-    title: "Constitutional Petition: Rights of Digital Sovereignty",
-    start_time: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second),
-    status: "pending",
-    judge_name: "Hon. Justice Tech",
-    court_id: milimani_1.id,
-    judge_id: Enum.find(judge_records, &(&1.email == "j.tech@judiciary.go.ke")).id,
-    link: milimani_1.link
-  },
-  %{
-    case_number: "CRIM-B452-2026",
-    title: "The State vs. Cyber Attacker",
-    start_time: DateTime.utc_now() |> DateTime.add(7200, :second) |> DateTime.truncate(:second),
-    status: "in_progress",
-    judge_name: "Hon. Lady Justice Binary",
-    court_id: milimani_1.id,
-    judge_id: Enum.find(judge_records, &(&1.email == "l.binary@judiciary.go.ke")).id,
-    link: milimani_1.link
-  },
-  %{
-    case_number: "COMM-C123-2025",
-    title: "Global Tech Corp vs. Local Startup Ltd",
-    start_time: DateTime.utc_now() |> DateTime.add(86400, :second) |> DateTime.truncate(:second),
-    status: "pending",
-    judge_name: "Hon. Justice Silicon",
-    court_id: milimani_2.id,
-    judge_id: Enum.find(judge_records, &(&1.email == "j.silicon@judiciary.go.ke")).id,
-    link: milimani_2.link
-  },
-  %{
-    case_number: "ELC-D789-2026",
-    title: "Employment Dispute: Remote Work Policy",
-    start_time: DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.truncate(:second),
-    status: "completed",
-    judge_name: "Hon. Justice Cloud",
-    court_id: milimani_2.id,
-    judge_id: Enum.find(judge_records, &(&1.email == "j.cloud@judiciary.go.ke")).id,
-    link: milimani_2.link
-  }
-]
+  Enum.each(activities, fn attrs ->
+    %Activity{}
+    |> Activity.changeset(attrs)
+    |> Repo.insert!()
+  end)
 
-Enum.each(activities, fn attrs ->
-  %Activity{}
-  |> Activity.changeset(attrs)
-  |> Repo.insert!()
-end)
+  IO.puts "Successfully seeded #{length(activities)} activities."
+else
+  IO.puts "Activities already exist, skipping seeding."
+end
 
-IO.puts "Successfully seeded #{length(activities)} activities and #{length(courts)} courts."
+IO.puts "Successfully verified/seeded courts and users."

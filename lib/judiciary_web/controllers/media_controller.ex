@@ -33,7 +33,8 @@ defmodule JudiciaryWeb.MediaController do
     end
   end
 
-  def upload(conn, _params) do
+  def upload(conn, params) do
+    Logger.warning("Invalid upload parameters: #{inspect(Map.keys(params))}")
     conn
     |> put_status(:bad_request)
     |> json(%{status: "error", message: "Invalid parameters"})
