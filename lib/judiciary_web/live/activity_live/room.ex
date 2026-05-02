@@ -130,6 +130,12 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   end
 
   @impl true
+  def handle_event("reconnect_media", _params, socket) do
+    Logger.info("Manual reconnection requested by #{socket.assigns.current_peer_id}")
+    {:noreply, push_event(socket, "reconnect_webrtc", %{peer_id: socket.assigns.current_peer_id})}
+  end
+
+  @impl true
   def handle_event("toggle_recording", _params, socket) do
     if socket.assigns.role in ["judge", "clerk"] do
       new_status = if socket.assigns.recording_status == :recording, do: :idle, else: :recording

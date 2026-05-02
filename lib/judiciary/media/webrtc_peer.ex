@@ -437,6 +437,15 @@ defmodule Judiciary.Media.WebRTCPeer do
       send(self(), :process_pending_tracks)
     end
 
+    if new_state == :failed do
+      Logger.warning("Connection failed for peer #{state.peer_id}, notifying client to reconnect")
+      PubSub.broadcast(
+        Judiciary.PubSub,
+        "room:#{state.room_id}",
+        {:webrtc_signal_to_client, state.peer_id, "reconnect", %{}}
+      )
+    end
+
     # Notify room about connection state
     PubSub.broadcast(
       Judiciary.PubSub,

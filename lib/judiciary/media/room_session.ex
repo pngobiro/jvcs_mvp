@@ -236,8 +236,24 @@ defmodule Judiciary.Media.RoomSession do
   end
 
   @impl true
-  def handle_info({:webrtc_signal_to_client, _peer_id, _signal_type, _signal}, state) do
-    {:noreply, state}
+  def handle_info({:peer_connection_state, peer_id, connection_state}, state) do
+    Logger.debug("RoomSession: Peer #{peer_id} connection state is now #{connection_state}")
+    
+    new_peers = case Map.fetch(state.peers, peer_id) do
+      {:ok, peer_info} ->
+        updated_info = %{peer_info | status: connection_state}
+        
+        # If it failed, maybe trigger an immediate recovery attempt or log it
+        if connection_state == :failed do
+           Logger.warning("Connection failed for peer #{peer_id}, will be handled by heartbeat or refresh")
+        end
+        
+        Map.put(state.peers, peer_id, updated_info)
+      :error ->
+        state.peers
+    end
+
+    {:noreply, %{state | peers: new_peers}}
   end
 
   @impl true
