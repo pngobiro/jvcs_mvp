@@ -34,12 +34,18 @@
         <div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-zinc-100 flex items-center justify-center text-[10px] font-bold text-zinc-500">SC</div>
       </div>
       
-      <.link navigate={~p"/activities/main/room"} class="bg-zinc-900 hover:bg-black text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-judiciary-gold transition-all active:scale-95 font-bold flex items-center gap-2">
+      <.link navigate={~p"/rooms/main-courtroom"} class="bg-zinc-900 hover:bg-black text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-judiciary-gold transition-all active:scale-95 font-bold flex items-center gap-2">
         <.icon name="hero-video-camera-solid" class="w-5 h-5 text-judiciary-gold" />
         Join Main Courtroom
       </.link>
       
-      <div :if={JudiciaryWeb.UserAuth.court_staff?(@current_scope)}>
+      <div :if={JudiciaryWeb.UserAuth.court_staff?(@current_scope)} class="flex gap-2">
+        <.link navigate={~p"/rooms"}>
+          <.button class="bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-zinc-900 transition-all active:scale-95 font-bold">
+            Manage Rooms
+          </.button>
+        </.link>
+
         <.link patch={~p"/activities/new"}>
           <.button class="bg-judiciary-green hover:bg-judiciary-dark text-white px-6 py-3 rounded-xl shadow-lg border-b-4 border-judiciary-gold transition-all active:scale-95 font-bold">
             + Schedule Hearing
@@ -152,9 +158,11 @@
           <.link navigate={~p"/activities/#{activity}"} class="text-zinc-400 hover:text-judiciary-green transition-colors" title="View Dossier">
             <.icon name="hero-document-text" class="w-5 h-5" />
           </.link>
-          <.link navigate={~p"/activities/#{activity}/room"} class="text-zinc-400 hover:text-green-600 transition-colors" title="Join Room">
-            <.icon name="hero-video-camera" class="w-5 h-5" />
-          </.link>
+          <%= if activity.virtual_room do %>
+            <.link navigate={~p"/rooms/#{activity.virtual_room.slug}"} class="text-zinc-400 hover:text-green-600 transition-colors" title="Join Room">
+              <.icon name="hero-video-camera" class="w-5 h-5" />
+            </.link>
+          <% end %>
         </div>
       </:action>
       <:action :let={{_id, activity}}>

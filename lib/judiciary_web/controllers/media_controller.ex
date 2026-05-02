@@ -11,17 +11,20 @@ defmodule JudiciaryWeb.MediaController do
     case Storage.upload_recording(upload.path, filename, upload.content_type) do
       {:ok, url} ->
         Logger.info("File uploaded successfully to R2: #{url}")
-        if activity_id do
-          activity = Judiciary.Court.get_activity!(activity_id)
-          
-          # Only update recording_url if it's not the audio-only version, or if we want audio-only for transcription
-          # For now, let's just log and update.
-          Judiciary.Court.update_activity(activity, %{recording_url: url, status: "completed"})
-          
-          # Trigger transcription in background
-          %{activity_id: activity_id, recording_url: url}
-          |> Judiciary.Workers.Transcriber.new()
-          |> Oban.insert()
+        
+        # Only associate with an activity if it's a numeric ID
+        case Integer.parse(activity_id || "") do
+          {id, ""} ->
+            activity = Judiciary.Court.get_activity!(id)
+            Judiciary.Court.update_activity(activity, %{recording_url: url, status: "completed"})
+            
+            # Trigger transcription in background
+            %{activity_id: id, recording_url: url}
+            |> Judiciary.Workers.Transcriber.new()
+            |> Oban.insert()
+            
+          _ ->
+            Logger.info("Upload not associated with a specific case activity (ID: #{activity_id})")
         end
         
         json(conn, %{status: "ok", url: url})

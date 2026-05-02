@@ -111,13 +111,18 @@
         </div>
       </div>
 
-      <!-- Actions Section -->
       <div class="flex flex-col sm:flex-row gap-4 pt-8 border-t border-zinc-200">
-        <.link navigate={~p"/activities/#{@activity}/room"} class="flex-1">
-          <.button class="w-full bg-judiciary-green hover:bg-judiciary-dark text-white py-5 text-lg font-black shadow-2xl active:scale-[0.98] transition-all border-b-4 border-judiciary-gold rounded-2xl uppercase tracking-widest">
-            Join Virtual Court Room
-          </.button>
-        </.link>
+        <%= if @activity.virtual_room do %>
+          <.link navigate={~p"/rooms/#{@activity.virtual_room.slug}"} class="flex-1">
+            <.button class="w-full bg-judiciary-green hover:bg-judiciary-dark text-white py-5 text-lg font-black shadow-2xl active:scale-[0.98] transition-all border-b-4 border-judiciary-gold rounded-2xl uppercase tracking-widest">
+              Join {@activity.virtual_room.name}
+            </.button>
+          </.link>
+        <% else %>
+          <div class="flex-1 p-5 bg-zinc-100 rounded-2xl text-center text-zinc-500 font-bold italic">
+            No virtual room assigned to this case
+          </div>
+        <% end %>
         
         <div :if={JudiciaryWeb.UserAuth.court_staff?(@current_scope)}>
           <.link patch={~p"/activities/#{@activity}/show/edit"} phx-click={JS.push_focus()}>

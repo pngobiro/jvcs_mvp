@@ -9,33 +9,41 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   alias Phoenix.PubSub
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    # Handle "main" ID for a constant/stable test room
-    activity = case id do
+  def mount(%{"id" => slug}, _session, socket) do
+    # Handle "main" slug for a constant/stable test room
+    room = case slug do
       "main" ->
-        case Court.list_activities() do
-          [first | _] -> first
-          [] -> 
-            # Fallback for empty DB
-            %Judiciary.Court.Activity{id: 0, title: "Main Courtroom", case_number: "DEMO-001", judge_name: "Presiding Officer"}
+        # Find or create a main courtroom
+        case Court.get_virtual_room_by_slug("main-courtroom") do
+          nil ->
+            {:ok, room} = Court.create_virtual_room(%{
+              name: "Main Courtroom",
+              type: "public",
+              slug: "main-courtroom"
+            })
+            room
+          room -> room
         end
-      _ -> Court.get_activity(id)
+      _ -> 
+        Court.get_virtual_room_by_slug(slug)
     end
 
-    case activity do
+    case room do
       nil ->
         {:ok,
          socket
-         |> put_flash(:error, "Activity not found")
+         |> put_flash(:error, "Court room not found")
          |> redirect(to: ~p"/activities")}
 
-      activity ->
-        mount_with_activity(activity, socket)
+      room ->
+        mount_with_room(room, socket)
     end
   end
 
-  defp mount_with_activity(activity, socket) do
-    topic = "room:#{activity.id}"
+  defp mount_with_room(room, socket) do
+    # The room slug is used as the WebRTC identifier
+    room_handle = room.slug
+    topic = "room:#{room_handle}"
 
     user = socket.assigns.current_scope.user
     display_name = user.name
@@ -46,7 +54,6 @@ defmodule JudiciaryWeb.ActivityLive.Room do
     peer_id = socket.assigns.current_peer_id
     
     # Status initialization: check if already admitted (e.g. on refresh)
-    # We look through current presence for ANY session belonging to this user that is 'admitted'
     peers_snapshot = if connected?(socket), do: Presence.list(topic), else: %{}
     
     already_admitted? = Enum.any?(peers_snapshot, fn {_id, %{metas: metas}} ->
@@ -57,6 +64,10 @@ defmodule JudiciaryWeb.ActivityLive.Room do
 
     status = cond do
       role in ["judge", "clerk"] -> "admitted"
+      # If it's your own chamber, you are admitted
+      role == "judge" and room.presiding_officer_id == user.id -> "admitted"
+      # If you are a member of the bench
+      role == "judge" and user.id in (room.bench_members || []) -> "admitted"
       already_admitted? -> "admitted"
       true -> "waiting"
     end
@@ -64,7 +75,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
     if connected?(socket) do
       PubSub.subscribe(Judiciary.PubSub, topic)
       # Attempt to start room session (non-blocking)
-      Judiciary.Media.RoomSupervisor.start_room(activity.id)
+      Judiciary.Media.RoomSupervisor.start_room(room_handle)
 
       Presence.track(self(), topic, peer_id, %{
         user_id: user.id,
@@ -74,35 +85,34 @@ defmodule JudiciaryWeb.ActivityLive.Room do
         online_at: System.system_time(:second)
       })
 
-      Logger.info("Tracked presence for #{peer_id}: #{display_name} (#{role}) - status: #{status}")
+      Logger.info("Tracked presence for #{peer_id}: #{display_name} (#{role}) in room #{room_handle}")
 
-      # Register peer with room session for state tracking (only if not already registered)
-      case RoomSession.add_peer(activity.id, peer_id, %{
+      # Register peer with room session
+      case RoomSession.add_peer(room_handle, peer_id, %{
         name: display_name,
         role: role
       }) do
-        {:ok, :added} ->
-          Logger.info("Peer #{peer_id} registered with room session")
-        {:ok, :already_exists} ->
-          Logger.info("Peer #{peer_id} already registered, skipping")
+        {:ok, _} ->
+          Logger.info("Peer #{peer_id} registered with room session #{room_handle}")
         {:error, reason} ->
           Logger.error("Failed to register peer: #{inspect(reason)}")
       end
     end
 
-    peers = if connected?(socket) do
-      Presence.list(topic)
-    else
-      %{}
-    end
+    peers = if connected?(socket), do: Presence.list(topic), else: %{}
 
-    Logger.info("Mount complete for #{peer_id}. Total peers in room: #{map_size(peers)}")
-    Logger.debug("Peers: #{inspect(peers, pretty: true)}")
+    # Determine current activity for this session (for recording/context)
+    current_activity = Enum.find(room.activities, fn a -> a.status == "in_progress" end) || 
+                       Enum.find(room.activities, fn a -> a.status == "pending" end) ||
+                       List.first(room.activities)
 
+    # For display, we might want to know if there's an active activity in this room
+    # For now, we'll just use the room's name
     {:ok,
      socket
-     |> assign(:activity, activity)
-     |> assign(:page_title, "Court Room: #{activity.title}")
+     |> assign(:room, room)
+     |> assign(:activity, current_activity)
+     |> assign(:page_title, "Virtual Court: #{room.name}")
      |> assign(:display_name, display_name)
      |> assign(:role, role)
      |> assign(:status, status)
@@ -126,7 +136,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
       
       # Inform room session
       action = if new_status == :recording, do: :start_recording, else: :stop_recording
-      RoomSession.update_recording_status(socket.assigns.activity.id, action)
+      RoomSession.update_recording_status(socket.assigns.room.slug, action)
       
       {:noreply, assign(socket, :recording_status, new_status)}
     else
@@ -138,20 +148,22 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   def handle_event("admit_peer", %{"peer_id" => peer_id}, socket) do
     if socket.assigns.role in ["judge", "clerk"] do
       # Find the peer's name from presence
-      peers = Presence.list("room:#{socket.assigns.activity.id}")
+      room_handle = socket.assigns.room.slug
+      peers = Presence.list("room:#{room_handle}")
       display_name = case Map.get(peers, peer_id) do
         %{metas: [%{display_name: name} | _]} -> name
         _ -> "Participant"
       end
 
-      Logger.info("Admitting peer #{peer_id} (#{display_name}) to room #{socket.assigns.activity.id}")
-      PubSub.broadcast(Judiciary.PubSub, "room:#{socket.assigns.activity.id}", {:peer_admitted, peer_id, display_name})
+      Logger.info("Admitting peer #{peer_id} (#{display_name}) to room #{room_handle}")
+      PubSub.broadcast(Judiciary.PubSub, "room:#{room_handle}", {:peer_admitted, peer_id, display_name})
     end
     {:noreply, socket}
   end
 
   @impl true
   def handle_event("send_message", %{"body" => body, "to" => _to}, socket) do
+    room_handle = socket.assigns.room.slug
     message = %{
       id: M.random_id(),
       from: socket.assigns.display_name,
@@ -161,23 +173,22 @@ defmodule JudiciaryWeb.ActivityLive.Room do
       at: DateTime.utc_now()
     }
 
-    PubSub.broadcast(Judiciary.PubSub, "room:#{socket.assigns.activity.id}", {:new_message, message})
+    PubSub.broadcast(Judiciary.PubSub, "room:#{room_handle}", {:new_message, message})
     {:noreply, socket}
   end
 
   @impl true
   def handle_event("heartbeat", %{"peer_id" => peer_id}, socket) do
     if socket.assigns.current_peer_id == peer_id do
-      # Simply calling send_signal update_heartbeat logic
-      # But better to have a specific function
-      Judiciary.Media.RoomSession.send_signal(socket.assigns.activity.id, peer_id, peer_id, %{"type" => "heartbeat"})
+      Judiciary.Media.RoomSession.send_signal(socket.assigns.room.slug, peer_id, peer_id, %{"type" => "heartbeat"})
     end
     {:noreply, socket}
   end
 
   @impl true
   def handle_event("join_call", _params, socket) do
-    PubSub.broadcast_from(Judiciary.PubSub, self(), "room:#{socket.assigns.activity.id}",
+    room_handle = socket.assigns.room.slug
+    PubSub.broadcast_from(Judiciary.PubSub, self(), "room:#{room_handle}",
       {:peer_joined_call, socket.assigns.current_peer_id, socket.assigns.display_name})
     {:noreply, assign(socket, :connection_status, :connected)}
   end
@@ -185,12 +196,11 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   @impl true
   def handle_event("webrtc_signaling", %{"payload" => payload, "to" => to_peer_id}, socket) do
     from = socket.assigns.current_peer_id
+    room_handle = socket.assigns.room.slug
     Logger.info("SIGNAL EVENT: from=#{from}, to=#{to_peer_id}, type=#{Map.get(payload, "type", "ice/other")}")
 
-    # In server-side SFU, client always talks to its own peer (to == from)
-
     # Send signal to room session for processing
-    case RoomSession.send_signal(socket.assigns.activity.id, from, from, payload) do
+    case RoomSession.send_signal(room_handle, from, from, payload) do
       :ok ->
         {:noreply, socket}
       {:error, reason} ->
@@ -216,7 +226,8 @@ defmodule JudiciaryWeb.ActivityLive.Room do
 
     # Note: Joins are handled separately by peer_admitted or join_call for signaling logic,
     # but we still need to update the @peers assign for the UI (participants list).
-    peers = Presence.list("room:#{socket.assigns.activity.id}")
+    room_handle = socket.assigns.room.slug
+    peers = Presence.list("room:#{room_handle}")
     
     # Robust Status Sync: check if I was admitted via presence metadata
     # (fallback for missed broadcasts)
@@ -246,12 +257,13 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   @impl true
   def handle_info({:peer_admitted, peer_id, display_name}, socket) do
     Logger.info("Peer #{peer_id} admitted, current peer: #{socket.assigns.current_peer_id}")
+    room_handle = socket.assigns.room.slug
 
     if socket.assigns.current_peer_id == peer_id do
       # I was admitted! Update own status
       Logger.info("I was admitted! Updating my status")
 
-      Presence.update(self(), "room:#{socket.assigns.activity.id}", peer_id, fn meta ->
+      Presence.update(self(), "room:#{room_handle}", peer_id, fn meta ->
         meta
         |> Map.put(:status, "admitted")
         |> Map.put(:user_id, socket.assigns.current_scope.user.id)
@@ -261,7 +273,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
       PubSub.broadcast_from(
         Judiciary.PubSub,
         self(),
-        "room:#{socket.assigns.activity.id}",
+        "room:#{room_handle}",
         {:peer_joined_call, peer_id, display_name}
       )
 
@@ -352,11 +364,11 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   def terminate(_reason, socket) do
     # Get assigns safely
     peer_id = Map.get(socket.assigns, :current_peer_id)
-    activity = Map.get(socket.assigns, :activity)
+    room = Map.get(socket.assigns, :room)
 
-    if peer_id && activity do
+    if peer_id && room do
       # Remove from room session
-      case RoomSession.remove_peer(activity.id, peer_id) do
+      case RoomSession.remove_peer(room.slug, peer_id) do
         :ok ->
           Logger.info("Peer #{peer_id} removed from room session")
         {:error, err} ->
@@ -365,7 +377,7 @@ defmodule JudiciaryWeb.ActivityLive.Room do
 
       # Explicitly untrack from presence (though it should happen automatically)
       # This ensures cleanup even if the process crashes
-      topic = "room:#{activity.id}"
+      topic = "room:#{room.slug}"
 
       # Check if we're still tracking before trying to untrack
       case Presence.get_by_key(topic, peer_id) do

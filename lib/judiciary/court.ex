@@ -8,9 +8,51 @@ defmodule Judiciary.Court do
 
   alias Judiciary.Court.Activity
   alias Judiciary.Court.CourtHouse
+  alias Judiciary.Court.VirtualRoom
 
   def list_courts do
     Repo.all(CourtHouse)
+  end
+
+  # ... (existing functions)
+
+  def list_virtual_rooms do
+    Repo.all(VirtualRoom)
+    |> Repo.preload([:court, :presiding_officer])
+  end
+
+  def get_virtual_room!(id), do: Repo.get!(VirtualRoom, id) |> Repo.preload([:court, :presiding_officer])
+
+  def get_virtual_room_by_slug(slug) do
+    Activity
+    |> order_by(desc: :start_time)
+    |> then(fn activity_query ->
+      Repo.get_by(VirtualRoom, slug: slug)
+      |> case do
+        nil -> nil
+        room -> Repo.preload(room, [:court, :presiding_officer, activities: activity_query])
+      end
+    end)
+  end
+
+  def create_virtual_room(attrs \\ %{}) do
+    %VirtualRoom{}
+    |> VirtualRoom.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_virtual_room(%VirtualRoom{} = room, attrs) do
+    room
+    |> VirtualRoom.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_virtual_room(%VirtualRoom{} = room) do
+    Repo.delete(room)
+  end
+
+  def change_virtual_room(%VirtualRoom{} = room, attrs \\ %{}) do
+    VirtualRoom.changeset(room, attrs)
   end
 
   def get_court!(id), do: Repo.get!(CourtHouse, id)
@@ -38,7 +80,7 @@ defmodule Judiciary.Court do
   def list_activities do
     Activity
     |> Repo.all()
-    |> Repo.preload([:court, :judge])
+    |> Repo.preload([:court, :judge, :virtual_room])
   end
 
   def get_activity(id) do
@@ -46,14 +88,14 @@ defmodule Judiciary.Court do
     |> Repo.get(id)
     |> case do
       nil -> nil
-      activity -> Repo.preload(activity, [:court, :judge])
+      activity -> Repo.preload(activity, [:court, :judge, :virtual_room])
     end
   end
 
   def get_activity!(id) do
     Activity
     |> Repo.get!(id)
-    |> Repo.preload([:court, :judge])
+    |> Repo.preload([:court, :judge, :virtual_room])
   end
 
   def create_activity(attrs \\ %{}) do
@@ -61,7 +103,7 @@ defmodule Judiciary.Court do
     |> Activity.changeset(attrs)
     |> Repo.insert()
     |> case do
-      {:ok, activity} -> {:ok, Repo.preload(activity, [:court, :judge])}
+      {:ok, activity} -> {:ok, Repo.preload(activity, [:court, :judge, :virtual_room])}
       error -> error
     end
   end
@@ -72,7 +114,7 @@ defmodule Judiciary.Court do
     |> Repo.update()
     |> case do
       {:ok, activity} ->
-        activity = Repo.preload(activity, [:court, :judge])
+        activity = Repo.preload(activity, [:court, :judge, :virtual_room])
         Phoenix.PubSub.broadcast(Judiciary.PubSub, "activities", {:activity_updated, activity})
         {:ok, activity}
 

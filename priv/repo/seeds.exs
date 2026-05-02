@@ -1,5 +1,6 @@
 alias Judiciary.Court.Activity
 alias Judiciary.Court.CourtHouse
+alias Judiciary.Court.VirtualRoom
 alias Judiciary.Repo
 
 base_url = System.get_env("BASE_URL") || "http://localhost:4000"
@@ -37,7 +38,7 @@ end)
 milimani_1 = Enum.find(court_records, &(&1.code == "MIL-H-01"))
 milimani_2 = Enum.find(court_records, &(&1.code == "MIL-H-02"))
 
-IO.puts "Seeding users..."
+IO.puts "Seeding users and virtual chambers..."
 
 judges = [
   %{
@@ -79,7 +80,7 @@ judges = [
 ]
 
 judge_records = Enum.map(judges, fn attrs ->
-  case Judiciary.Accounts.get_user_by_email(attrs.email) do
+  user = case Judiciary.Accounts.get_user_by_email(attrs.email) do
     nil ->
       {:ok, user} = Judiciary.Accounts.register_user(attrs)
       # Set a default password
@@ -91,64 +92,104 @@ judge_records = Enum.map(judges, fn attrs ->
     user ->
       user
   end
+
+  # Ensure each judge has a virtual chamber
+  if user.role == "judge" do
+    slug = user.email |> String.split("@") |> List.first() |> String.replace(".", "-")
+    chamber_slug = "#{slug}-chamber"
+    
+    case Repo.get_by(VirtualRoom, slug: chamber_slug) do
+      nil ->
+        %VirtualRoom{}
+        |> VirtualRoom.changeset(%{
+          name: "#{user.name}'s Chambers",
+          type: "chamber",
+          slug: chamber_slug,
+          presiding_officer_id: user.id,
+          court_id: if(user.email in ["j.tech@judiciary.go.ke", "l.binary@judiciary.go.ke"], do: milimani_1.id, else: milimani_2.id)
+        })
+        |> Repo.insert!()
+      _room ->
+        :ok
+    end
+  end
+  
+  user
 end)
+
+# Create a sample Bench Room
+case Repo.get_by(VirtualRoom, slug: "constitutional-bench") do
+  nil ->
+    %VirtualRoom{}
+    |> VirtualRoom.changeset(%{
+      name: "Constitutional Court Bench",
+      type: "bench",
+      slug: "constitutional-bench",
+      court_id: milimani_1.id,
+      bench_members: [
+        Enum.find(judge_records, &(&1.email == "j.tech@judiciary.go.ke")).id,
+        Enum.find(judge_records, &(&1.email == "l.binary@judiciary.go.ke")).id
+      ]
+    })
+    |> Repo.insert!()
+  _ -> :ok
+end
 
 IO.puts "Seeding court activities..."
 
-# Only seed activities if the table is empty to avoid changing IDs on every restart
-if Repo.all(Activity) == [] do
-  activities = [
-    %{
-      case_number: "PET-E001-2026",
-      title: "Constitutional Petition: Rights of Digital Sovereignty",
-      start_time: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second),
-      status: "pending",
-      judge_name: "Hon. Justice Tech",
-      court_id: milimani_1.id,
-      judge_id: Enum.find(judge_records, &(&1.email == "j.tech@judiciary.go.ke")).id,
-      link: milimani_1.link
-    },
-    %{
-      case_number: "CRIM-B452-2026",
-      title: "The State vs. Cyber Attacker",
-      start_time: DateTime.utc_now() |> DateTime.add(7200, :second) |> DateTime.truncate(:second),
-      status: "in_progress",
-      judge_name: "Hon. Lady Justice Binary",
-      court_id: milimani_1.id,
-      judge_id: Enum.find(judge_records, &(&1.email == "l.binary@judiciary.go.ke")).id,
-      link: milimani_1.link
-    },
-    %{
-      case_number: "COMM-C123-2025",
-      title: "Global Tech Corp vs. Local Startup Ltd",
-      start_time: DateTime.utc_now() |> DateTime.add(86400, :second) |> DateTime.truncate(:second),
-      status: "pending",
-      judge_name: "Hon. Justice Silicon",
-      court_id: milimani_2.id,
-      judge_id: Enum.find(judge_records, &(&1.email == "j.silicon@judiciary.go.ke")).id,
-      link: milimani_2.link
-    },
-    %{
-      case_number: "ELC-D789-2026",
-      title: "Employment Dispute: Remote Work Policy",
-      start_time: DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.truncate(:second),
-      status: "completed",
-      judge_name: "Hon. Justice Cloud",
-      court_id: milimani_2.id,
-      judge_id: Enum.find(judge_records, &(&1.email == "j.cloud@judiciary.go.ke")).id,
-      link: milimani_2.link
-    }
-  ]
+# Clean up existing activities to allow linking to rooms
+Repo.delete_all(Activity)
 
-  Enum.each(activities, fn attrs ->
-    %Activity{}
-    |> Activity.changeset(attrs)
-    |> Repo.insert!()
-  end)
+# Fetch rooms for mapping
+rooms = Repo.all(VirtualRoom)
 
-  IO.puts "Successfully seeded #{length(activities)} activities."
-else
-  IO.puts "Activities already exist, skipping seeding."
-end
+activities = [
+  %{
+    case_number: "PET-E001-2026",
+    title: "Constitutional Petition: Rights of Digital Sovereignty",
+    start_time: DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.truncate(:second),
+    status: "pending",
+    judge_name: "Hon. Justice Tech",
+    court_id: milimani_1.id,
+    judge_id: Enum.find(judge_records, &(&1.email == "j.tech@judiciary.go.ke")).id,
+    virtual_room_id: Enum.find(rooms, &(&1.slug == "j-tech-chamber")).id
+  },
+  %{
+    case_number: "CRIM-B452-2026",
+    title: "The State vs. Cyber Attacker",
+    start_time: DateTime.utc_now() |> DateTime.add(7200, :second) |> DateTime.truncate(:second),
+    status: "in_progress",
+    judge_name: "Hon. Lady Justice Binary",
+    court_id: milimani_1.id,
+    judge_id: Enum.find(judge_records, &(&1.email == "l.binary@judiciary.go.ke")).id,
+    virtual_room_id: Enum.find(rooms, &(&1.slug == "l-binary-chamber")).id
+  },
+  %{
+    case_number: "COMM-C123-2025",
+    title: "Global Tech Corp vs. Local Startup Ltd",
+    start_time: DateTime.utc_now() |> DateTime.add(86400, :second) |> DateTime.truncate(:second),
+    status: "pending",
+    judge_name: "Hon. Justice Silicon",
+    court_id: milimani_2.id,
+    judge_id: Enum.find(judge_records, &(&1.email == "j.silicon@judiciary.go.ke")).id,
+    virtual_room_id: Enum.find(rooms, &(&1.slug == "j-silicon-chamber")).id
+  },
+  %{
+    case_number: "ELC-D789-2026",
+    title: "Employment Dispute: Remote Work Policy",
+    start_time: DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.truncate(:second),
+    status: "completed",
+    judge_name: "Hon. Justice Cloud",
+    court_id: milimani_2.id,
+    judge_id: Enum.find(judge_records, &(&1.email == "j.cloud@judiciary.go.ke")).id,
+    virtual_room_id: Enum.find(rooms, &(&1.slug == "j-cloud-chamber")).id
+  }
+]
 
-IO.puts "Successfully verified/seeded courts and users."
+Enum.each(activities, fn attrs ->
+  %Activity{}
+  |> Activity.changeset(Map.put(attrs, :link, "#{base_url}/rooms/#{Enum.find(rooms, &(&1.id == attrs.virtual_room_id)).slug}"))
+  |> Repo.insert!()
+end)
+
+IO.puts "Successfully seeded #{length(activities)} activities, #{length(courts)} courts and virtual rooms."

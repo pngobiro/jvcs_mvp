@@ -33,6 +33,13 @@ defmodule JudiciaryWeb.ActivityLive.FormComponent do
           options={@judge_options}
           prompt="Select a Judge"
         />
+        <.input
+          field={@form[:virtual_room_id]}
+          type="select"
+          label="Assigned Virtual Room"
+          options={@room_options}
+          prompt="Select a Room"
+        />
         <.input field={@form[:link]} type="text" label="Meeting Link" />
         <.input field={@form[:case_number]} type="text" label="Case number" />
         <.input field={@form[:title]} type="text" label="Title" />
@@ -61,11 +68,15 @@ defmodule JudiciaryWeb.ActivityLive.FormComponent do
     judges = Judiciary.Accounts.list_users() |> Enum.filter(&(&1.role == "judge"))
     judge_options = Enum.map(judges, &{&1.name, &1.id})
 
+    rooms = Court.list_virtual_rooms()
+    room_options = Enum.map(rooms, &{"#{&1.name} (#{&1.type})", &1.id})
+
     {:ok,
      socket
      |> assign(assigns)
      |> assign(:court_options, court_options)
      |> assign(:judge_options, judge_options)
+     |> assign(:room_options, room_options)
      |> assign_form(changeset)}
   end
 

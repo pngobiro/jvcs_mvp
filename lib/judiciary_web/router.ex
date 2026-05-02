@@ -63,6 +63,11 @@ defmodule JudiciaryWeb.Router do
       live "/activities/new", ActivityLive.Index, :new
       live "/activities/:id/edit", ActivityLive.Index, :edit
       live "/activities/:id/show/edit", ActivityLive.Show, :edit
+
+      # Virtual Room Management
+      live "/rooms", VirtualRoomLive.Index, :index
+      live "/rooms/new", VirtualRoomLive.Index, :new
+      live "/rooms/:id/edit", VirtualRoomLive.Index, :edit
     end
   end
 
@@ -73,7 +78,7 @@ defmodule JudiciaryWeb.Router do
       on_mount: [{JudiciaryWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm_email/:token", UserLive.Settings, :confirm_email
-      live "/activities/:id/room", ActivityLive.Room, :room
+      live "/rooms/:id", ActivityLive.Room, :room
     end
   end
 
