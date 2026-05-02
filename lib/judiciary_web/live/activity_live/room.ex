@@ -110,12 +110,28 @@ defmodule JudiciaryWeb.ActivityLive.Room do
      |> assign(:messages, [])
      |> assign(:sidebar_open, false)
      |> assign(:connection_status, :connected)
+     |> assign(:recording_status, :idle)
      |> assign(:error_message, nil)}
   end
 
   @impl true
   def handle_event("toggle_sidebar", _params, socket) do
     {:noreply, assign(socket, :sidebar_open, !socket.assigns.sidebar_open)}
+  end
+
+  @impl true
+  def handle_event("toggle_recording", _params, socket) do
+    if socket.assigns.role in ["judge", "clerk"] do
+      new_status = if socket.assigns.recording_status == :recording, do: :idle, else: :recording
+      
+      # Inform room session
+      action = if new_status == :recording, do: :start_recording, else: :stop_recording
+      RoomSession.update_recording_status(socket.assigns.activity.id, action)
+      
+      {:noreply, assign(socket, :recording_status, new_status)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -181,6 +197,14 @@ defmodule JudiciaryWeb.ActivityLive.Room do
         Logger.error("Failed to send signal: #{inspect(reason)}")
         {:noreply, socket}
     end
+  end
+
+  @impl true
+  def handle_info({:recording_status_updated, status}, socket) do
+    {:noreply, 
+      socket 
+      |> assign(:recording_status, status)
+      |> push_event("recording_status_updated", %{status: status})}
   end
 
   @impl true

@@ -68,6 +68,13 @@ defmodule Judiciary.Media.RoomSession do
     end
   end
 
+  def update_recording_status(room_id, action) do
+    case get_room_session(room_id) do
+      {:ok, pid} -> GenServer.cast(pid, {:update_recording_status, action})
+      :error -> {:error, :room_not_found}
+    end
+  end
+
   # Server Callbacks
 
   @impl true
@@ -91,6 +98,7 @@ defmodule Judiciary.Media.RoomSession do
     {:ok, %{
       room_id: room_id,
       peers: initial_peers,
+      recording_status: :idle,
       created_at: System.monotonic_time(:millisecond)
     }}
   end
@@ -213,6 +221,21 @@ defmodule Judiciary.Media.RoomSession do
   end
 
   @impl true
+  def handle_cast({:update_recording_status, action}, state) do
+    new_status = if action == :start_recording, do: :recording, else: :idle
+    Logger.info("Room #{state.room_id} recording status: #{new_status}")
+
+    # Broadcast to all participants (LiveViews)
+    PubSub.broadcast(
+      Judiciary.PubSub,
+      "room:#{state.room_id}",
+      {:recording_status_updated, new_status}
+    )
+
+    {:noreply, %{state | recording_status: new_status}}
+  end
+
+  @impl true
   def handle_info({:webrtc_signal_to_client, _peer_id, _signal_type, _signal}, state) do
     {:noreply, state}
   end
@@ -233,7 +256,7 @@ defmodule Judiciary.Media.RoomSession do
         state.peers
     end
 
-    for {other_id, other_info} <- new_peers, other_id != from_peer_id do
+    for {id, other_info} <- new_peers, id != from_peer_id do
       if other_info.pid, do: send(other_info.pid, {:add_remote_track, from_peer_id, track})
     end
 
@@ -250,7 +273,7 @@ defmodule Judiciary.Media.RoomSession do
       Logger.debug("ROUTE: RTP from #{from_peer_id} to #{length(recipients)} peers")
     end
     
-    for {other_id, other_info} <- recipients do
+    for {_id, other_info} <- recipients do
       if other_info.pid, do: send(other_info.pid, {:forward_rtp, track_id, packet})
     end
 

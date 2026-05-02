@@ -108,9 +108,14 @@
             <!-- Quick Controls Overlay -->
             <div class="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-4 bg-zinc-900/95 backdrop-blur-2xl px-4 sm:px-8 py-3 sm:py-4 rounded-2xl sm:rounded-3xl border border-zinc-700 shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-20">
               <%= if @role in ["judge", "clerk"] do %>
-                <button id="toggle-record" class="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-zinc-800 hover:bg-zinc-700 transition-all active:scale-90 group border border-zinc-700" title="Record Session">
-                  <svg class="w-5 h-5 sm:w-6 sm:h-6 text-zinc-400 group-hover:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <circle cx="12" cy="12" r="6" fill="currentColor" stroke="none" />
+                <button 
+                  id="toggle-record" 
+                  phx-click="toggle_recording"
+                  class={"p-3 sm:p-4 rounded-xl sm:rounded-2xl transition-all active:scale-90 group border #{if @recording_status == :recording, do: "bg-red-500/20 border-red-500", else: "bg-zinc-800 hover:bg-zinc-700 border-zinc-700"}"} 
+                  title={if @recording_status == :recording, do: "Stop Recording", else: "Start Recording"}
+                >
+                  <svg class={"w-5 h-5 sm:w-6 sm:h-6 transition-colors #{if @recording_status == :recording, do: "text-red-500", else: "text-zinc-400 group-hover:text-red-500"}"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <circle cx="12" cy="12" r="6" fill="currentColor" stroke={if @recording_status == :recording, do: "none", else: "currentColor"} />
                     <circle cx="12" cy="12" r="10" stroke-width="2" />
                   </svg>
                 </button>

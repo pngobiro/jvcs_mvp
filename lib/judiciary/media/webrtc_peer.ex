@@ -44,6 +44,7 @@ defmodule Judiciary.Media.WebRTCPeer do
       :connection_state,
       :signaling_state,
       :creating_offer?,
+      :recording_enabled?,
       :created_at
     ]
   end
@@ -144,6 +145,7 @@ defmodule Judiciary.Media.WebRTCPeer do
       connection_state: :new,
       signaling_state: :stable,
       creating_offer?: false,
+      recording_enabled?: false,
       created_at: System.monotonic_time(:millisecond)
     }
 
@@ -263,9 +265,6 @@ defmodule Judiciary.Media.WebRTCPeer do
     handle_info(:create_offer, state)
   end
 
-  ## Info handlers
-
-  # Create a server-initiated offer (for renegotiation after adding tracks)
   @impl true
   def handle_info(:create_offer, state) do
     pc_state = PeerConnection.get_signaling_state(state.pc)
@@ -479,6 +478,15 @@ defmodule Judiciary.Media.WebRTCPeer do
   # ex_webrtc sends {:rtp, track_id, rid, packet} where rid is nil for non-simulcast
   @impl true
   def handle_info({:ex_webrtc, _pc, {:rtp, track_id, _rid, packet}}, state) do
+    # If recording is enabled, "save" the packet
+    if state.recording_enabled? do
+      # In a real implementation, this would send to a RecordingPipeline GenServer
+      # or write to a dedicated media storage bin.
+      if :rand.uniform(1000) == 1 do
+        Logger.debug("RECORDING: Writing packet from #{state.peer_id} (track #{track_id})")
+      end
+    end
+
     # Forward RTP packet to RoomSession for distribution to other peers
     case get_room_session(state.room_id) do
       {:ok, pid} ->
@@ -621,6 +629,15 @@ defmodule Judiciary.Media.WebRTCPeer do
 
   @impl true
   def handle_info({:new_message, _message}, state), do: {:noreply, state}
+
+  @impl true
+  def handle_info({:recording_status_updated, status}, state) do
+    enabled? = (status == :recording)
+    if enabled? != state.recording_enabled? do
+      Logger.info("WebRTCPeer #{state.peer_id} recording: #{enabled?}")
+    end
+    {:noreply, %{state | recording_enabled?: enabled?}}
+  end
 
   # Catch-all for other messages
   @impl true
