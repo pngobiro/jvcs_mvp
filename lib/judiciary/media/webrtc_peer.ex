@@ -17,7 +17,7 @@ defmodule Judiciary.Media.WebRTCPeer do
   5. Server forwards RTP packets between peers
   """
 
-  use GenServer
+  use GenServer, restart: :temporary
   require Logger
 
   alias ExWebRTC.{PeerConnection, SessionDescription, ICECandidate, MediaStreamTrack}
@@ -447,64 +447,8 @@ defmodule Judiciary.Media.WebRTCPeer do
 
   @impl true
   def handle_info(:reset_connection, state) do
-    Logger.info("Resetting WebRTC connection for peer #{state.peer_id} as requested")
-    
-    # Close old PC
-    try do
-      PeerConnection.close(state.pc)
-    catch
-      _, _ -> :ok
-    end
-
-    # Create fresh PC
-    {:ok, new_pc} = PeerConnection.start_link(
-      ice_servers: @ice_servers,
-      ice_aggressive_nomination: true,
-      ice_port_range: 50000..50050,
-      video_codecs: [
-        %ExWebRTC.RTPCodecParameters{
-          payload_type: 96,
-          mime_type: "video/VP8",
-          clock_rate: 90000
-        }
-      ],
-      audio_codecs: [
-        %ExWebRTC.RTPCodecParameters{
-          payload_type: 111,
-          mime_type: "audio/opus",
-          clock_rate: 48000,
-          channels: 2
-        }
-      ],
-      ice_ip_filter: fn ip ->
-        ip_str = :inet.ntoa(ip) |> to_string()
-        not (String.starts_with?(ip_str, "127.") or 
-             String.contains?(ip_str, ":") or 
-             String.starts_with?(ip_str, "172."))
-      end
-    )
-    :ok = PeerConnection.controlling_process(new_pc, self())
-
-    # We keep local_tracks (they will be re-added when the client sends a new offer and 
-    # we process_pending_tracks)
-    # Actually, we should probably clear them because they are tied to the OLD PC.
-    
-    # Re-inform RoomSession that we are fresh so it can re-send existing tracks
-    case get_room_session(state.room_id) do
-      {:ok, pid} -> send(pid, {:peer_restarted, state.peer_id})
-      _ -> nil
-    end
-
-    {:noreply, %{state | 
-      pc: new_pc, 
-      local_tracks: [], 
-      remote_tracks: [], 
-      pending_remote_tracks: [], 
-      ice_candidates_queue: [],
-      connection_state: :new,
-      signaling_state: :stable,
-      creating_offer?: false
-    }}
+    Logger.info("Resetting WebRTC connection for peer #{state.peer_id} by terminating and letting RoomSession recreate it")
+    {:stop, :normal, state}
   end
 
   @impl true

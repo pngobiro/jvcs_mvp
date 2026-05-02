@@ -109,24 +109,36 @@ defmodule Judiciary.Media.RoomSession do
 
     case Map.fetch(state.peers, peer_id) do
       {:ok, peer_info} ->
-        # If PID is nil, restart it
-        if is_nil(peer_info.pid) or not Process.alive?(peer_info.pid) do
-           case start_webrtc_peer(state.room_id, peer_id, metadata) do
-             {:ok, pid} ->
-                new_info = %{peer_info | pid: pid}
-                {:reply, {:ok, :restarted}, %{state | peers: Map.put(state.peers, peer_id, new_info)}}
-             _ ->
-                {:reply, {:ok, :already_exists}, state}
-           end
-        else
-          # PID exists and is alive. 
-          # We should tell the peer process to RESET its connection
-          # because the client is clearly trying to join again (likely a refresh or reconnect)
-          # We use CALL here to ensure the reset is FINISHED before the client starts signaling
-          case GenServer.call(peer_info.pid, :reset_connection) do
-            :ok -> {:reply, {:ok, :already_exists}, state}
-            _ -> {:reply, {:error, :reset_failed}, state}
-          end
+        if not is_nil(peer_info.pid) and Process.alive?(peer_info.pid) do
+          Logger.info("Terminating existing peer process for #{peer_id} to ensure clean reset")
+          # Use terminate_child to cleanly shut down the peer. It will not be restarted because WebRTCPeer is :temporary.
+          DynamicSupervisor.terminate_child(Judiciary.Media.PeerSupervisor, peer_info.pid)
+        end
+
+        # Start a fresh WebRTC peer process
+        case start_webrtc_peer(state.room_id, peer_id, metadata) do
+          {:ok, peer_pid} ->
+            new_peer_info = %{
+              peer_info |
+              pid: peer_pid,
+              status: :new,
+              connected_at: System.monotonic_time(:millisecond),
+              last_heartbeat: System.monotonic_time(:millisecond),
+              tracks: []
+            }
+
+            # Inform the NEW peer about all EXISTING tracks from OTHER peers
+            for {other_id, other_info} <- state.peers, other_id != peer_id do
+              for track <- other_info.tracks do
+                send(peer_pid, {:add_remote_track, other_id, track})
+              end
+            end
+
+            new_peers = Map.put(state.peers, peer_id, new_peer_info)
+            {:reply, {:ok, :already_exists}, %{state | peers: new_peers}}
+
+          _ ->
+            {:reply, {:error, :start_failed}, state}
         end
 
       :error ->
