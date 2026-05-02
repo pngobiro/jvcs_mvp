@@ -21,10 +21,15 @@
 const WebRTCSimple = {
   mounted() {
     this.peerId = this.el.dataset.peerId;
+    this.displayName = this.el.dataset.displayName || "You";
     this.peerConnection = null;
     this.localStream = null;
     this.pendingCandidates = [];
     this.remoteStreams = new Map(); // streamId -> { stream, videoEl }
+    this.peerNames = new Map(); // peerId -> displayName
+    
+    // Store own name
+    this.peerNames.set(this.peerId, this.displayName);
     
     // Perfect Negotiation state
     this.makingOffer = false;
@@ -39,7 +44,7 @@ const WebRTCSimple = {
       iceCandidatePoolSize: 10
     };
 
-    console.log("[WebRTC-SFU] Mounted, PeerID:", this.peerId);
+    console.log("[WebRTC-SFU] Mounted, PeerID:", this.peerId, "Name:", this.displayName);
     console.log("[WebRTC-SFU] Origin:", window.location.origin);
     console.log("[WebRTC-SFU] Secure Context:", window.isSecureContext);
 
@@ -94,9 +99,20 @@ const WebRTCSimple = {
       }
     });
 
+    // Handle initial peer names
+    this.handleEvent("initial_peer_names", ({ names }) => {
+      console.log("[WebRTC-SFU] Received initial peer names:", names);
+      Object.entries(names).forEach(([pId, name]) => {
+        this.peerNames.set(pId, name);
+      });
+      this.updateRemoteVideoLabels();
+    });
+
     // Handle peer joined (for UI notification)
     this.handleEvent("peer_joined", ({ peer_id, display_name }) => {
       console.log(`[WebRTC-SFU] Peer joined: ${display_name} (${peer_id})`);
+      this.peerNames.set(peer_id, display_name);
+      this.updateRemoteVideoLabels();
       this.showNotification(`${display_name} joined the session`);
     });
 
@@ -394,9 +410,17 @@ const WebRTCSimple = {
       videoEl.play().catch(e => console.warn("[WebRTC-SFU] Error auto-playing remote video:", e));
     };
 
+    // Extract peerId from stream ID (format is stream_peerId)
+    let displayName = "Participant";
+    if (streamId.startsWith("stream_")) {
+      const pId = streamId.replace("stream_", "");
+      displayName = this.peerNames.get(pId) || "Participant";
+      console.log(`[WebRTC-SFU] Resolved name for ${streamId}: ${displayName}`);
+    }
+
     const label = document.createElement("div");
     label.className = "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-center";
-    label.innerHTML = `<p class="text-sm font-bold tracking-tight">Participant</p>`;
+    label.innerHTML = `<p class="text-sm font-bold tracking-tight">${displayName}</p>`;
 
     wrapper.appendChild(videoEl);
     wrapper.appendChild(label);
@@ -416,13 +440,9 @@ const WebRTCSimple = {
   },
 
   removeRemoteVideo(peerId) {
-    // Remove by peer ID — check all wrappers
-    const wrapper = document.getElementById(`wrapper-${peerId}`);
-    if (wrapper) {
-      wrapper.remove();
-      this.remoteStreams.delete(peerId);
-      console.log(`[WebRTC-SFU] Removed video for peer ${peerId}`);
-    }
+    // Remove by peer ID — check for stream wrapper
+    const streamId = `stream_${peerId}`;
+    this.removeRemoteVideoByStream(streamId);
   },
 
   removeRemoteVideoByStream(streamId) {
@@ -432,6 +452,25 @@ const WebRTCSimple = {
     }
     this.remoteStreams.delete(streamId);
     console.log(`[WebRTC-SFU] Removed video for stream ${streamId}`);
+  },
+
+  updateRemoteVideoLabels() {
+    this.remoteStreams.forEach((info, streamId) => {
+      if (streamId.startsWith("stream_")) {
+        const pId = streamId.replace("stream_", "");
+        const displayName = this.peerNames.get(pId);
+        if (displayName) {
+          const wrapper = document.getElementById(`wrapper-${streamId}`);
+          if (wrapper) {
+            const labelP = wrapper.querySelector("p");
+            if (labelP && labelP.textContent !== displayName) {
+              console.log(`[WebRTC-SFU] Updating label for ${streamId} to ${displayName}`);
+              labelP.textContent = displayName;
+            }
+          }
+        }
+      }
+    });
   },
 
   reconnect() {

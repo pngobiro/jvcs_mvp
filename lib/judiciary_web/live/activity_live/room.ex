@@ -97,31 +97,54 @@ defmodule JudiciaryWeb.ActivityLive.Room do
         {:error, reason} ->
           Logger.error("Failed to register peer: #{inspect(reason)}")
       end
+
+      # Push initial names to JS hook
+      initial_names = Enum.reduce(Presence.list(topic), %{}, fn {p_id, %{metas: [meta | _]}}, acc ->
+        Map.put(acc, p_id, meta.display_name)
+      end)
+      socket = push_event(socket, "initial_peer_names", %{names: initial_names})
+      
+      peers = Presence.list(topic)
+
+      # Determine current activity for this session (for recording/context)
+      current_activity = Enum.find(room.activities, fn a -> a.status == "in_progress" end) || 
+                         Enum.find(room.activities, fn a -> a.status == "pending" end) ||
+                         List.first(room.activities)
+
+      {:ok,
+       socket
+       |> assign(:room, room)
+       |> assign(:activity, current_activity)
+       |> assign(:page_title, "Virtual Court: #{room.name}")
+       |> assign(:display_name, display_name)
+       |> assign(:role, role)
+       |> assign(:status, status)
+       |> assign(:peers, peers)
+       |> assign(:messages, [])
+       |> assign(:sidebar_open, false)
+       |> assign(:connection_status, :connected)
+       |> assign(:recording_status, :idle)
+       |> assign(:error_message, nil)}
+    else
+      current_activity = Enum.find(room.activities, fn a -> a.status == "in_progress" end) || 
+                         Enum.find(room.activities, fn a -> a.status == "pending" end) ||
+                         List.first(room.activities)
+
+      {:ok,
+       socket
+       |> assign(:room, room)
+       |> assign(:activity, current_activity)
+       |> assign(:page_title, "Virtual Court: #{room.name}")
+       |> assign(:display_name, display_name)
+       |> assign(:role, role)
+       |> assign(:status, status)
+       |> assign(:peers, %{})
+       |> assign(:messages, [])
+       |> assign(:sidebar_open, false)
+       |> assign(:connection_status, :connected)
+       |> assign(:recording_status, :idle)
+       |> assign(:error_message, nil)}
     end
-
-    peers = if connected?(socket), do: Presence.list(topic), else: %{}
-
-    # Determine current activity for this session (for recording/context)
-    current_activity = Enum.find(room.activities, fn a -> a.status == "in_progress" end) || 
-                       Enum.find(room.activities, fn a -> a.status == "pending" end) ||
-                       List.first(room.activities)
-
-    # For display, we might want to know if there's an active activity in this room
-    # For now, we'll just use the room's name
-    {:ok,
-     socket
-     |> assign(:room, room)
-     |> assign(:activity, current_activity)
-     |> assign(:page_title, "Virtual Court: #{room.name}")
-     |> assign(:display_name, display_name)
-     |> assign(:role, role)
-     |> assign(:status, status)
-     |> assign(:peers, peers)
-     |> assign(:messages, [])
-     |> assign(:sidebar_open, false)
-     |> assign(:connection_status, :connected)
-     |> assign(:recording_status, :idle)
-     |> assign(:error_message, nil)}
   end
 
   @impl true
