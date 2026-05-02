@@ -115,6 +115,10 @@ const WebRTCSimple = {
       }
     });
 
+    // Persistent state for local media
+    this.audioEnabled = true;
+    this.videoEnabled = true;
+
     this.setupControls();
     
     // Heartbeat to keep server-side peer alive
@@ -132,8 +136,12 @@ const WebRTCSimple = {
     // Add local tracks to the connection
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
+        // Apply persistent state
+        if (track.kind === "audio") track.enabled = this.audioEnabled;
+        if (track.kind === "video") track.enabled = this.videoEnabled;
+        
         pc.addTrack(track, this.localStream);
-        console.log(`[WebRTC-SFU] Added local ${track.kind} track`);
+        console.log(`[WebRTC-SFU] Added local ${track.kind} track (enabled: ${track.enabled})`);
       });
     }
 
@@ -439,51 +447,64 @@ const WebRTCSimple = {
     }
   },
 
-  setupControls() {
-    // Audio toggle
+  toggleAudio() {
+    if (this.localStream) {
+      const track = this.localStream.getAudioTracks()[0];
+      if (track) {
+        this.audioEnabled = !this.audioEnabled;
+        track.enabled = this.audioEnabled;
+        this.updateControlUI();
+        console.log(`[WebRTC-SFU] Audio ${this.audioEnabled ? "enabled" : "disabled"}`);
+      }
+    }
+  },
+
+  toggleVideo() {
+    if (this.localStream) {
+      const track = this.localStream.getVideoTracks()[0];
+      if (track) {
+        this.videoEnabled = !this.videoEnabled;
+        track.enabled = this.videoEnabled;
+        this.updateControlUI();
+        console.log(`[WebRTC-SFU] Video ${this.videoEnabled ? "enabled" : "disabled"}`);
+      }
+    }
+  },
+
+  updateControlUI() {
     const audioBtn = document.getElementById("toggle-audio");
     if (audioBtn) {
-      audioBtn.addEventListener("click", () => {
-        if (this.localStream) {
-          const audioTrack = this.localStream.getAudioTracks()[0];
-          if (audioTrack) {
-            audioTrack.enabled = !audioTrack.enabled;
-            // Update button visual state
-            const svg = audioBtn.querySelector("svg");
-            if (svg) {
-              svg.style.opacity = audioTrack.enabled ? "1" : "0.3";
-            }
-            if (!audioTrack.enabled) {
-              audioBtn.classList.add("ring-2", "ring-red-500");
-            } else {
-              audioBtn.classList.remove("ring-2", "ring-red-500");
-            }
-          }
-        }
-      });
+      const svg = audioBtn.querySelector("svg");
+      if (svg) svg.style.opacity = this.audioEnabled ? "1" : "0.3";
+      if (!this.audioEnabled) audioBtn.classList.add("ring-2", "ring-red-500");
+      else audioBtn.classList.remove("ring-2", "ring-red-500");
     }
 
-    // Video toggle
     const videoBtn = document.getElementById("toggle-video");
     if (videoBtn) {
-      videoBtn.addEventListener("click", () => {
-        if (this.localStream) {
-          const videoTrack = this.localStream.getVideoTracks()[0];
-          if (videoTrack) {
-            videoTrack.enabled = !videoTrack.enabled;
-            const svg = videoBtn.querySelector("svg");
-            if (svg) {
-              svg.style.opacity = videoTrack.enabled ? "1" : "0.3";
-            }
-            if (!videoTrack.enabled) {
-              videoBtn.classList.add("ring-2", "ring-red-500");
-            } else {
-              videoBtn.classList.remove("ring-2", "ring-red-500");
-            }
-          }
-        }
-      });
+      const svg = videoBtn.querySelector("svg");
+      if (svg) svg.style.opacity = this.videoEnabled ? "1" : "0.3";
+      if (!this.videoEnabled) videoBtn.classList.add("ring-2", "ring-red-500");
+      else videoBtn.classList.remove("ring-2", "ring-red-500");
     }
+  },
+
+  setupControls() {
+    // Use event delegation on the hook element to handle clicks on controls
+    // even after DOM updates/re-renders
+    this.el.addEventListener("click", (e) => {
+      const audioBtn = e.target.closest("#toggle-audio");
+      if (audioBtn) {
+        this.toggleAudio();
+        return;
+      }
+
+      const videoBtn = e.target.closest("#toggle-video");
+      if (videoBtn) {
+        this.toggleVideo();
+        return;
+      }
+    });
   },
 
   updateConnectionIndicator(state) {
@@ -510,6 +531,9 @@ const WebRTCSimple = {
   },
 
   updated() {
+    // Re-sync UI state (e.g. mute indicators) after DOM update
+    this.updateControlUI();
+
     // Re-attach local stream if DOM changed (e.g., lobby → room transition)
     if (this.localStream) {
       const localVideo = document.getElementById("local-video");
