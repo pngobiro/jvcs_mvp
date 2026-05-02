@@ -81,6 +81,36 @@
         </div>
       </div>
 
+      <!-- Case Archives -->
+      <div :if={@activity.recording_url || @activity.transcript_url} class="mb-12 p-6 bg-white rounded-2xl border border-zinc-200 shadow-inner">
+        <h3 class="text-xs font-black uppercase tracking-widest text-zinc-400 mb-4 flex items-center gap-2">
+          <.icon name="hero-archive-box-solid" class="w-4 h-4" />
+          Case Archives
+        </h3>
+        <div class="flex flex-wrap gap-4">
+          <%= if @activity.recording_url do %>
+            <a href={@activity.recording_url} target="_blank" class="flex items-center gap-3 px-6 py-3 bg-zinc-900 text-white rounded-xl hover:bg-black transition-all font-bold text-sm border-b-4 border-judiciary-gold">
+              <.icon name="hero-play-circle-solid" class="w-5 h-5 text-judiciary-gold" />
+              Download Official Recording
+            </a>
+          <% end %>
+          
+          <%= if @activity.transcript_url do %>
+            <a href={@activity.transcript_url} target="_blank" class="flex items-center gap-3 px-6 py-3 bg-white border-2 border-zinc-200 text-zinc-700 rounded-xl hover:bg-zinc-50 transition-all font-bold text-sm">
+              <.icon name="hero-document-text-solid" class="w-5 h-5 text-blue-500" />
+              View Legal Transcript
+            </a>
+          <% else %>
+            <%= if @activity.recording_url && JudiciaryWeb.UserAuth.court_staff?(@current_scope) do %>
+              <button phx-click="transcribe" class="flex items-center gap-3 px-6 py-3 bg-indigo-50 border-2 border-indigo-200 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-all font-bold text-sm">
+                <.icon name="hero-cpu-chip-solid" class="w-5 h-5" />
+                Transcribe Session
+              </button>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+
       <!-- Actions Section -->
       <div class="flex flex-col sm:flex-row gap-4 pt-8 border-t border-zinc-200">
         <.link navigate={~p"/activities/#{@activity}/room"} class="flex-1">

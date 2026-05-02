@@ -128,6 +128,16 @@
       <:action :let={{_id, activity}}>
         <div class="flex items-center gap-4">
           <%= if JudiciaryWeb.UserAuth.court_staff?(@current_scope) do %>
+            <%= if activity.recording_url && !activity.transcript_url do %>
+              <button
+                phx-click="transcribe"
+                phx-value-id={activity.id}
+                class="text-zinc-400 hover:text-indigo-500 transition-colors"
+                title="Trigger Transcription"
+              >
+                <.icon name="hero-cpu-chip" class="w-5 h-5" />
+              </button>
+            <% end %>
             <%= if activity.transcript_url do %>
               <a href={activity.transcript_url} target="_blank" class="text-zinc-400 hover:text-blue-500 transition-colors" title="Download Transcript">
                 <.icon name="hero-document-text" class="w-5 h-5" />

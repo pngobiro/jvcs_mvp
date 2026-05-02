@@ -69,6 +69,26 @@ defmodule JudiciaryWeb.ActivityLive.Index do
     end
   end
 
+  @impl true
+  def handle_event("transcribe", %{"id" => id}, socket) do
+    activity = Court.get_activity!(id)
+
+    if activity.recording_url do
+      # Trigger transcription in background
+      %{activity_id: activity.id, recording_url: activity.recording_url}
+      |> Judiciary.Workers.Transcriber.new()
+      |> Oban.insert()
+
+      {:noreply,
+       socket
+       |> put_flash(:info, "Transcription task started for #{activity.case_number}")}
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "No recording found for this activity")}
+    end
+  end
+
   defp status_classes("in_progress"), do: "bg-red-100 text-red-700 border-red-200 shadow-sm"
   defp status_classes("completed"), do: "bg-green-100 text-green-700 border-green-200"
   defp status_classes("pending"), do: "bg-zinc-100 text-zinc-700 border-zinc-200"
