@@ -217,8 +217,16 @@ defmodule JudiciaryWeb.ActivityLive.Room do
   @impl true
   def handle_event("join_call", _params, socket) do
     room_handle = socket.assigns.room.slug
+    peer_id = socket.assigns.current_peer_id
+
+    # Register/Reset with RoomSession
+    RoomSession.add_peer(room_handle, peer_id, %{
+      name: socket.assigns.display_name,
+      role: socket.assigns.role
+    })
+
     PubSub.broadcast_from(Judiciary.PubSub, self(), "room:#{room_handle}",
-      {:peer_joined_call, socket.assigns.current_peer_id, socket.assigns.display_name})
+      {:peer_joined_call, peer_id, socket.assigns.display_name})
     {:noreply, assign(socket, :connection_status, :connected)}
   end
 

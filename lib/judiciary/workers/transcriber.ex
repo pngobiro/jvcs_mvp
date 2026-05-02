@@ -76,12 +76,53 @@ defmodule Judiciary.Workers.Transcriber do
   end
 
   defp get_transcript_text(results) do
-    # Robust extraction from Deepgram response structure
+    # Try to build diarized transcript first
+    case extract_diarized_text(results) do
+      {:ok, diarized} -> diarized
+      _ ->
+        # Fallback to plain transcript
+        with %{"channels" => [channel | _]} <- results,
+             %{"alternatives" => [alt | _]} <- channel do
+          alt["transcript"]
+        else
+          _ -> nil
+        end
+    end
+  end
+
+  defp extract_diarized_text(results) do
     with %{"channels" => [channel | _]} <- results,
-         %{"alternatives" => [alt | _]} <- channel do
-      alt["transcript"]
+         %{"alternatives" => [%{"words" => [_ | _] = words} | _]} <- channel,
+         true <- Enum.all?(words, &Map.has_key?(&1, "speaker")) do
+      
+      # Group words by speaker turns
+      text = 
+        words
+        |> Enum.reduce({[], nil, []}, fn word, {acc, last_speaker, turn_words} ->
+          speaker = word["speaker"]
+          text = word["punctuated_word"] || word["word"]
+          
+          if speaker == last_speaker do
+            {acc, speaker, turn_words ++ [text]}
+          else
+            # New speaker turn
+            new_acc = if is_nil(last_speaker) do
+              acc
+            else
+              acc ++ ["\nSpeaker #{last_speaker}: #{Enum.join(turn_words, " ")}"]
+            end
+            {new_acc, speaker, [text]}
+          end
+        end)
+        |> then(fn {acc, last_speaker, turn_words} ->
+          acc ++ ["\nSpeaker #{last_speaker}: #{Enum.join(turn_words, " ")}"]
+        end)
+        |> Enum.join("\n")
+        |> String.trim()
+        
+      {:ok, text}
     else
-      _ -> nil
+      _ -> :error
     end
   end
 end

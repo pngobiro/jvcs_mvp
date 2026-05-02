@@ -154,6 +154,82 @@ defmodule Judiciary.Media.WebRTCPeer do
 
   # Handle client OFFER — client initiates the connection
   @impl true
+  def handle_call(:reset_connection, _from, state) do
+    Logger.info("Resetting WebRTC connection for peer #{state.peer_id} synchronously")
+    
+    # Close old PC
+    try do
+      PeerConnection.close(state.pc)
+    catch
+      _, _ -> :ok
+    end
+
+    # Create fresh PC with full configuration
+    {:ok, new_pc} = PeerConnection.start_link(
+      ice_servers: @ice_servers,
+      ice_aggressive_nomination: true,
+      ice_port_range: 50000..50050,
+      video_codecs: [
+        %ExWebRTC.RTPCodecParameters{
+          payload_type: 96,
+          mime_type: "video/VP8",
+          clock_rate: 90000
+        }
+      ],
+      audio_codecs: [
+        %ExWebRTC.RTPCodecParameters{
+          payload_type: 111,
+          mime_type: "audio/opus",
+          clock_rate: 48000,
+          channels: 2
+        }
+      ],
+      ice_ip_filter: fn ip ->
+        ip_str = :inet.ntoa(ip) |> to_string()
+        not (String.starts_with?(ip_str, "127.") or 
+             String.contains?(ip_str, ":") or 
+             String.starts_with?(ip_str, "172."))
+      end
+    )
+    :ok = PeerConnection.controlling_process(new_pc, self())
+
+    # Re-inform RoomSession that we are fresh so it can re-send existing tracks
+    case get_room_session(state.room_id) do
+      {:ok, pid} -> send(pid, {:peer_restarted, state.peer_id})
+      _ -> nil
+    end
+
+    new_state = %{state | 
+      pc: new_pc, 
+      local_tracks: [], 
+      remote_tracks: [], 
+      pending_remote_tracks: [], 
+      ice_candidates_queue: [],
+      connection_state: :new,
+      signaling_state: :stable,
+      creating_offer?: false,
+      created_at: System.monotonic_time(:millisecond)
+    }
+
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_stats, _from, state) do
+    stats = %{
+      peer_id: state.peer_id,
+      display_name: state.display_name,
+      role: state.role,
+      connection_state: state.connection_state,
+      signaling_state: state.signaling_state,
+      local_tracks: length(state.local_tracks),
+      remote_tracks: length(state.remote_tracks),
+      pending_tracks: length(state.pending_remote_tracks)
+    }
+    {:reply, {:ok, stats}, state}
+  end
+
+  @impl true
   def handle_cast({:handle_signal, _from_peer_id, %{"type" => "offer", "sdp" => sdp}}, state) do
     Logger.info("Received offer from client #{state.peer_id}")
     
@@ -266,35 +342,48 @@ defmodule Judiciary.Media.WebRTCPeer do
   end
 
   @impl true
-  def handle_info(:create_offer, state) do
+  def handle_info({:create_offer, opts}, state) do
     pc_state = PeerConnection.get_signaling_state(state.pc)
+    ice_restart = Keyword.get(opts, :ice_restart, false)
 
     cond do
-      state.creating_offer? ->
-        Logger.debug("Offer generation already in progress for peer #{state.peer_id}, skipping")
-        {:noreply, state}
+      state.creating_offer? and not ice_restart ->
+        # Check if we've been waiting too long for an answer
+        now = System.monotonic_time(:millisecond)
+        if now - state.created_at > 10_000 do
+          Logger.warning("Offer timeout for peer #{state.peer_id}, resetting signaling state")
+          {:noreply, %{state | creating_offer?: false, created_at: now}}
+        else
+          Logger.debug("Offer generation already in progress for peer #{state.peer_id}, skipping")
+          {:noreply, state}
+        end
 
-      pc_state != :stable ->
+      pc_state != :stable and not ice_restart ->
         Logger.debug("PC signaling state is #{pc_state}, delaying offer for peer #{state.peer_id}")
-        Process.send_after(self(), :create_offer, 500)
+        Process.send_after(self(), {:create_offer, opts}, 500)
         {:noreply, state}
 
       true ->
-        Logger.info("Creating renegotiation offer for peer #{state.peer_id}")
-        case PeerConnection.create_offer(state.pc) do
+        Logger.info("Creating renegotiation offer for peer #{state.peer_id} (ice_restart: #{ice_restart})")
+        case PeerConnection.create_offer(state.pc, opts) do
           {:ok, offer} ->
             Logger.debug("Generated offer SDP: #{offer.sdp}")
             :ok = PeerConnection.set_local_description(state.pc, offer)
             offer_json = SessionDescription.to_json(offer)
             send_to_client(state.room_id, state.peer_id, "offer", offer_json)
             Logger.info("Sent renegotiation offer to client #{state.peer_id}")
-            {:noreply, %{state | creating_offer?: true}}
+            {:noreply, %{state | creating_offer?: true, created_at: System.monotonic_time(:millisecond)}}
 
           {:error, reason} ->
             Logger.error("Failed to create offer for peer #{state.peer_id}: #{inspect(reason)}")
             {:noreply, state}
         end
     end
+  end
+
+  @impl true
+  def handle_info(:create_offer, state) do
+    handle_info({:create_offer, []}, state)
   end
 
   # Process pending remote tracks (tracks from other peers to forward)
@@ -420,7 +509,7 @@ defmodule Judiciary.Media.WebRTCPeer do
 
   @impl true
   def handle_info({:ex_webrtc, _pc, {:ice_candidate, candidate}}, state) do
-    Logger.debug("Generated ICE candidate for peer #{state.peer_id}")
+    Logger.debug("Generated ICE candidate for peer #{state.peer_id}: #{candidate.candidate}")
 
     candidate_json = ICECandidate.to_json(candidate)
     send_to_client(state.room_id, state.peer_id, "ice", candidate_json)
@@ -438,7 +527,11 @@ defmodule Judiciary.Media.WebRTCPeer do
     end
 
     if new_state == :failed do
-      Logger.warning("Connection failed for peer #{state.peer_id}, notifying client to reconnect")
+      Logger.warning("Connection failed for peer #{state.peer_id}, triggering immediate reset")
+      # Force a local reset of the PC and state
+      send(self(), :reset_connection)
+      
+      # Also notify client just in case they can recover
       PubSub.broadcast(
         Judiciary.PubSub,
         "room:#{state.room_id}",

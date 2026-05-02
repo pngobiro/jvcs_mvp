@@ -122,8 +122,11 @@ defmodule Judiciary.Media.RoomSession do
           # PID exists and is alive. 
           # We should tell the peer process to RESET its connection
           # because the client is clearly trying to join again (likely a refresh or reconnect)
-          send(peer_info.pid, :reset_connection)
-          {:reply, {:ok, :already_exists}, state}
+          # We use CALL here to ensure the reset is FINISHED before the client starts signaling
+          case GenServer.call(peer_info.pid, :reset_connection) do
+            :ok -> {:reply, {:ok, :already_exists}, state}
+            _ -> {:reply, {:error, :reset_failed}, state}
+          end
         end
 
       :error ->
